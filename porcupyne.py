@@ -64,7 +64,7 @@ SENSOR_IMAGE = 'Sensor.png'
 PLATFORM_IMAGE = 'Platform.png'
 
 window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT,
-                              vsync = True,
+                              vsync = False,
                               caption = "Sonic Gemini derp test!",
                               resizable = False)
 SCALE = 120
@@ -374,6 +374,5 @@ ft = font.load('Arial',20)
 fps_text = font.Text(ft, y=10)
 colliding_text = font.Text(ft, y=-200)
 
-pyglet.clock.schedule(update)
-pyglet.clock.set_fps_limit(60)
+pyglet.clock.schedule_interval(update, 1 / 60.0)
 pyglet.app.run()
