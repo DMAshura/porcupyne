@@ -43,6 +43,8 @@ from pyglet.gl import (glLoadIdentity, glTranslatef, glLoadIdentity,
 
 from collide import *
 
+from rabbyt.sprites import Sprite
+
 #Load resources
 resource.path.append('gamedata')
 resource.reindex()
@@ -94,17 +96,16 @@ class Platform(pyglet.sprite.Sprite):
 
         self.collision = SpriteCollision(self)
 
-class Ball(pyglet.sprite.Sprite):
+class Ball(object):
     ball_image = resource.image(BALL_IMAGE)
     center_image(ball_image)
     width = ball_image.width
     height = ball_image.height
+    sprite = None
 
     def __init__(self):
-        x = 0
-        y = 0
-
-        super(Ball, self).__init__(self.ball_image, x, y)
+        self.sprite = Sprite(self.ball_image, x = 0, y = 0)
+        self.x = self.y = 0
 
         # Sensors
 
@@ -147,6 +148,8 @@ class Ball(pyglet.sprite.Sprite):
         y = y or self.y
         self.x = x
         self.y = y
+        self.sprite.x = int(x)
+        self.sprite.y = int(y)
         self.update_sensors()
 
     def handle_input(self):
@@ -197,8 +200,8 @@ class Ball(pyglet.sprite.Sprite):
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
-        self.sensor_bottom.x = self.x
-        self.sensor_bottom.y = self.y - self.width/2.0 + self.sensor_bottom.width/2.0
+        self.sensor_bottom.x = int(self.x)
+        self.sensor_bottom.y = int(self.y) - self.width/2.0 + self.sensor_bottom.width/2.0
 
     def perform_speed_movement(self, dt):
         collided = False
@@ -216,6 +219,7 @@ class Ball(pyglet.sprite.Sprite):
             if collided:
                 self.dx = 0
                 break
+        self.sprite.x = int(self.x)
 
     def perform_gravity_movement(self, dt):
         self.dy = max(self.dy - self.grv, -self.maxg)
@@ -238,14 +242,18 @@ class Ball(pyglet.sprite.Sprite):
                 self.flagGround = True
                 self.dy = 0
                 break
+        
+        self.sprite.y = int(self.y)
 
     def update(self, dt):
         if self.flagGround and not keys[key.Z]:
             self.flagAllowJump = True
-        print (self.flagGround, not keys[key.Z], self.flagAllowJump)
         self.handle_input()
         self.perform_speed_movement(dt)
         self.perform_gravity_movement(dt)
+    
+    def draw(self):
+        self.sprite.render()
 
 class BG(pyglet.sprite.Sprite):
     bg_image = resource.image(BG_IMAGE)
