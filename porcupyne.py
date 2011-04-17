@@ -197,25 +197,23 @@ class Ball(pyglet.sprite.Sprite):
         self.x += self.dx * dt
 
     def perform_gravity_movement(self, dt):
-        if not self.flagGround:
-            self.dy = max(self.dy - self.grv, -self.maxg)
-
-        Collided = False
+        self.dy = max(self.dy - self.grv, -self.maxg)
+        self.flagGround = False
+        collided = False
 
         # Failsafe movement
         for i in range(0, int(FAILSAFE_AMOUNT)):
             self.y += self.dy/FAILSAFE_AMOUNT * dt
             self.update_sensors()
-            if collide(self.sensor_bottom.collision, myplatform.collision):
-                while collide(self.sensor_bottom.collision, myplatform.collision):
+            for platform in platforms:
+                while collide(self.sensor_bottom.collision, platform.collision):
+                    collided = True
                     self.y += 1
                     self.update_sensors()
-                Collided = True
-            if Collided:
+            if collided:
                 self.flagGround = True
                 self.dy = 0
                 break
-        '''self.y += self.dy * dt'''
 
     def update(self, dt):
         if self.flagGround and not keys[key.Z]:
@@ -234,9 +232,7 @@ class BG(pyglet.sprite.Sprite):
     def __init__(self):
         x = 0
         y = 0
-
         super(BG, self).__init__(self.bg_image, x, y)
-
         self.dx = 0
 
     def update(self, dt):
@@ -313,7 +309,8 @@ def on_draw():
     myball.draw()
     for sensor in myball.sensors:
         sensor.draw()
-    myplatform.draw()
+    for platform in platforms:
+        platform.draw()
 
     fps_text.text = ("fps: %d") % (clock.get_fps())
     fps_text.draw()
@@ -323,7 +320,10 @@ def on_draw():
 
 myball = Ball()
 mybg = BG()
-myplatform = Platform(0, -128)
+platforms = [
+    Platform(0, -128),
+    Platform(128, 0)
+]
 
 ft = font.load('Arial',20)
 fps_text = font.Text(ft, y=10)
