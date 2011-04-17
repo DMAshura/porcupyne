@@ -45,8 +45,10 @@ from collide import *
 
 from rabbyt.sprites import Sprite
 
+GAMEDATA_PATH = 'gamedata'
+
 #Load resources
-resource.path.append('gamedata')
+resource.path.append(GAMEDATA_PATH)
 resource.reindex()
 
 GAME_WIDTH = 640
@@ -70,6 +72,14 @@ SCALE = 120
 def center_image(image):
     image.anchor_x = image.width/2
     image.anchor_y = image.height/2
+
+loaded_sounds = {}
+
+def play_sound(name):
+    if name not in loaded_sounds:
+        loaded_sounds[name] = pyglet.media.load(os.path.join(
+            GAMEDATA_PATH, 'sounds', '%s.wav' % name), streaming = False)
+    loaded_sounds[name].play()
 
 class Sensor(pyglet.sprite.Sprite):
     sensor_image = resource.image(SENSOR_IMAGE)
@@ -104,8 +114,10 @@ class Ball(object):
     sprite = None
 
     def __init__(self):
-        self.sprite = Sprite(self.ball_image, x = 0, y = 0)
-        self.x = self.y = 0
+        x = y = 200
+        self.sprite = Sprite(self.ball_image, x = x, y = y)
+        self.x = x
+        self.y = y
 
         # Sensors
 
@@ -192,6 +204,7 @@ class Ball(object):
         if keys[key.H]:
             self.dy = 0
         if self.flagJumpNextFrame:
+            play_sound('jump')
             self.dy = self.jmp
             self.flagGround = False
             self.flagAllowJump = False
