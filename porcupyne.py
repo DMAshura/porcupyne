@@ -141,6 +141,13 @@ class Ball(pyglet.sprite.Sprite):
 
     def release_jump(self):
         self.dy = min(self.dy, self.jmpweak)
+    
+    def set_position(self, x = None, y = None):
+        x = x or self.x
+        y = y or self.y
+        self.x = x
+        self.y = y
+        self.update_sensors()
 
     def handle_input(self):
         # Speed input and management
@@ -194,7 +201,21 @@ class Ball(pyglet.sprite.Sprite):
         self.sensor_bottom.y = self.y - self.width/2.0 + self.sensor_bottom.width/2.0
 
     def perform_speed_movement(self, dt):
-        self.x += self.dx * dt
+        collided = False
+        for i in range(0, int(FAILSAFE_AMOUNT)):
+            self.x += self.dx/FAILSAFE_AMOUNT * dt
+            self.update_sensors()
+            for platform in platforms:
+                while collide(self.sensor_bottom.collision, platform.collision):
+                    collided = True
+                    if self.dx > 0:
+                        self.x -= 1
+                    else:
+                        self.x += 1
+                    self.update_sensors()
+            if collided:
+                self.dx = 0
+                break
 
     def perform_gravity_movement(self, dt):
         self.dy = max(self.dy - self.grv, -self.maxg)
@@ -208,7 +229,10 @@ class Ball(pyglet.sprite.Sprite):
             for platform in platforms:
                 while collide(self.sensor_bottom.collision, platform.collision):
                     collided = True
-                    self.y += 1
+                    if self.dy > 0:
+                        self.y -= 1
+                    else:
+                        self.y += 1
                     self.update_sensors()
             if collided:
                 self.flagGround = True
@@ -260,7 +284,7 @@ def on_key_press(symbol, modifiers):
     elif symbol == key.H:
         GRAVITY = False
     elif symbol == key.F:
-        myball.flagGround = not myball.flagGround
+        myball.set_position(300, 300)
 
 keys = key.KeyStateHandler()
 window.push_handlers(keys)
