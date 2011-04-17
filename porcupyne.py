@@ -67,6 +67,7 @@ window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT,
                               vsync = False,
                               caption = "Sonic Gemini derp test!",
                               resizable = False)
+window.invalid = False
 SCALE = 120
 
 def center_image(image):
@@ -241,7 +242,7 @@ class Ball(object):
 
         # Failsafe movement
         for i in range(0, int(FAILSAFE_AMOUNT)):
-            self.y += self.dy/FAILSAFE_AMOUNT * dt
+            self.y += (self.dy/FAILSAFE_AMOUNT) * dt
             self.update_sensors()
             for platform in platforms:
                 while collide(self.sensor_bottom.collision, platform.collision):
@@ -313,8 +314,12 @@ window.push_handlers(keys)
 def update(dt):
     myball.update(dt)
     mybg.update(dt)
+    if window.has_exit:
+        return
+    window.switch_to()
+    on_draw()
+    window.flip()
 
-@window.event
 def on_draw():
     window.clear()
 
@@ -374,5 +379,8 @@ ft = font.load('Arial',20)
 fps_text = font.Text(ft, y=10)
 colliding_text = font.Text(ft, y=-200)
 
-pyglet.clock.schedule_interval(update, 1 / 60.0)
+def dummy(dt):
+    pass
+
+pyglet.clock.schedule_interval(update, 1 / 85.0)
 pyglet.app.run()
