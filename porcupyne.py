@@ -63,6 +63,8 @@ BALL_IMAGE = 'BlueBall.png'
 SENSOR_IMAGE = 'Sensor.png'
 PLATFORM_IMAGE = 'Platform.png'
 
+SLOPE_TEST = 4 # allow 4 pixels
+
 window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT,
                               vsync = False,
                               caption = "Sonic Gemini derp test!",
@@ -223,13 +225,26 @@ class Ball(object):
             self.x += self.dx/FAILSAFE_AMOUNT * dt
             self.update_sensors()
             for platform in platforms:
-                while collide(self.sensor_bottom.collision, platform.collision):
-                    collided = True
-                    if self.dx > 0:
-                        self.x -= 1
+                startY = self.y
+                if collide(self.sensor_bottom.collision, platform.collision):
+                    # first, try see if it's a small slope
+                    for _ in xrange(SLOPE_TEST):
+                        self.y += 1
+                        self.update_sensors()
+                        if not collide(self.sensor_bottom.collision, 
+                                       platform.collision):
+                            break
                     else:
-                        self.x += 1
-                    self.update_sensors()
+                        self.y = startY
+                        self.update_sensors()
+                        while collide(self.sensor_bottom.collision, 
+                                      platform.collision):
+                            collided = True
+                            if self.dx > 0:
+                                self.x -= 1
+                            else:
+                                self.x += 1
+                            self.update_sensors()
             if collided:
                 self.dx = 0
                 break
@@ -314,13 +329,14 @@ window.push_handlers(keys)
 def update(dt):
     myball.update(dt)
     mybg.update(dt)
+    
     if window.has_exit:
         return
     window.switch_to()
-    on_draw()
+    on_draw(dt)
     window.flip()
 
-def on_draw():
+def on_draw(dt):
     window.clear()
 
     # This is where the code to auto-resize the window begins.
@@ -363,8 +379,8 @@ def on_draw():
     
     glPopMatrix()
 
-    fps_text.text = ("fps: %d") % (clock.get_fps())
-    fps_text.draw()
+    fps_display.text = '%d' % (1 / dt)
+    fps_display.draw()
 
     colliding_text.text = str(myball.dy / SCALE)
     colliding_text.draw()
@@ -376,12 +392,12 @@ platforms = [
     Platform(128, 0)
 ]
 
-ft = font.load('Arial',20)
-fps_text = font.Text(ft, y=10)
-colliding_text = font.Text(ft, y=-200)
+import pyglet.font
+fps_display = pyglet.font.Text(pyglet.font.load('', 36, bold = True), '', 
+    color=(0.5, 0.5, 0.5, 0.5), x = 10, y = 10)
 
-def dummy(dt):
-    pass
+ft = font.load('Arial', 20)
+colliding_text = font.Text(ft, y=-200)
 
 pyglet.clock.schedule_interval(update, 1 / 85.0)
 pyglet.app.run()
