@@ -352,15 +352,16 @@ def on_draw():
 
     # I can eventually use this to change the camera. 
     #glTranslatef(window.width/window.scale/2, window.height/window.scale/2, 0.0)
-    #glPushMatrix()
-    #glTranslatef(myball.dx, myball.dy, 0.0)
-    #glPopMatrix()
+    glPushMatrix()
+    glTranslatef(int(-myball.x), int(-myball.y), 0.0)
     mybg.draw()
     myball.draw()
     for sensor in myball.sensors:
         sensor.draw()
     for platform in platforms:
         platform.draw()
+    
+    glPopMatrix()
 
     fps_text.text = ("fps: %d") % (clock.get_fps())
     fps_text.draw()
