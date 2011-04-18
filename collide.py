@@ -1,4 +1,13 @@
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
+
+# This code is taken unmodified (except for this header) from:
+#  http://code.google.com/p/darkcoda/source/browse/#svn/sprite_collision
+# and is licensed under the New BSD License.
+
+
 # needed to cast image data
+
 from ctypes import *
 
 class Rect:

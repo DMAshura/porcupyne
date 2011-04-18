@@ -4,8 +4,25 @@
 # ====================
 # | porcupyne Engine |
 # ====================
-# 2011 Bill Shillito
+# (c) 2011 Bill Shillito ("DM Ashura") and Mathias "Mat²" Kærlev
+# Obviously we mean this code, not Sonic. :P  Sonic is (c) Sega and Sonic Team.)
+#
 # Thanks to those from #pyglet on FreeNode IRC for your help!
+#
+# This file is part of porcupyne.
+#
+#    porcupyne is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    porcupyne is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with porcupyne.  If not, see <http://www.gnu.org/licenses/>.
 #
 # This engine requires pyglet.  You can get it at www.pyglet.org.
 
