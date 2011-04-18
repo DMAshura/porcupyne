@@ -54,8 +54,6 @@ resource.reindex()
 GAME_WIDTH = 640
 GAME_HEIGHT = 480
 
-GRAVITY = True
-
 FAILSAFE_AMOUNT = 20.0
 
 BG_IMAGE = 'bg.jpg'
@@ -192,17 +190,6 @@ class Ball(object):
         elif not keys[key.RIGHT] and not keys[key.LEFT] and self.flagGround:
             self.dx -= min(abs(self.dx), self.frc) * cmp(self.dx,0)
 
-        # Y control for now because I haven't implemented gravity yet.
-        if GRAVITY:
-            "stuff"
-        else:
-            if keys[key.UP] and self.dy < self.max:
-                self.dy += self.acc
-            if keys[key.DOWN] and self.dy > -self.max:
-                self.dy -= self.acc
-            if not keys[key.UP] and not keys[key.DOWN]:
-                self.dy -= min(abs(self.dy), self.frc) * cmp(self.dy,0)
-
         # Quickly stop downward velocity for debug
         if keys[key.H]:
             self.dy = 0
@@ -316,10 +303,6 @@ def on_key_press(symbol, modifiers):
         window.set_size(854, 480)
     elif symbol == key.NUM_6:
         window.set_size(1280, 720)
-    elif symbol == key.G:
-        GRAVITY = not GRAVITY
-    elif symbol == key.H:
-        GRAVITY = False
     elif symbol == key.F:
         myball.set_position(300, 300)
 
@@ -382,8 +365,8 @@ def on_draw(dt):
     fps_display.text = '%d' % (1 / dt)
     fps_display.draw()
 
-    colliding_text.text = str(myball.dy / SCALE)
-    colliding_text.draw()
+    debug_text.text = str(myball.flagGround)
+    debug_text.draw()
 
 myball = Ball()
 mybg = BG()
@@ -397,7 +380,7 @@ fps_display = pyglet.font.Text(pyglet.font.load('', 36, bold = True), '',
     color=(0.5, 0.5, 0.5, 0.5), x = 10, y = 10)
 
 ft = font.load('Arial', 20)
-colliding_text = font.Text(ft, y=-200)
+debug_text = font.Text(ft, y=-200)
 
-pyglet.clock.schedule_interval(update, 1 / 85.0)
+pyglet.clock.schedule_interval(update, 1 / 60.0)
 pyglet.app.run()
