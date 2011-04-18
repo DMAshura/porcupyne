@@ -1,0 +1,11 @@
+ISSUES:
+
+1.  When vsync was turned on, character's movement was
+    independent of frame rate.  Now, character's movement
+    depends on the value in line 385.
+2.  Character's flag "flagGround" is switching repeatedly between
+    True and False while on the ground.  This is causing its
+    deceleration on the ground to be twice as slow as the acceleration.
+3.  If character is jumping while the game is "hiccuping" (due to, say,
+    an IM being received), character will jump incredibly high.  I feel
+    this may be related to the dt value somehow.

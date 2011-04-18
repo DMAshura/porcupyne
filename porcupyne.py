@@ -63,6 +63,14 @@ PLATFORM_IMAGE = 'Platform.png'
 
 SLOPE_TEST = 4 # allow 4 pixels
 
+# Define key mappings here so we can change them if necessary,
+# either here or even in a key config menu ingame
+keymap = {'up':    key.UP,
+          'down':  key.DOWN,
+          'left':  key.LEFT,
+          'right': key.RIGHT,
+          'jump':  key.Z}
+
 window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT,
                               vsync = False,
                               caption = "Sonic Gemini derp test!",
@@ -167,7 +175,7 @@ class Ball(object):
 
     def handle_input(self):
         # Speed input and management
-        if keys[key.LEFT]:
+        if keys[keymap['left']]:
             if self.dx > 0 and self.flagGround:
                 self.dx -= self.dec
                 if -self.dec < self.dx < 0:
@@ -177,7 +185,7 @@ class Ball(object):
                     self.dx = max(self.dx - self.acc, -self.max)
                 else:
                     self.dx = max(self.dx - self.air, -self.max)
-        elif keys[key.RIGHT]:
+        elif keys[keymap['right']]:
             if self.dx < 0 and self.flagGround:
                 self.dx += self.dec
                 if 0 < self.dx < self.dec:
@@ -187,7 +195,7 @@ class Ball(object):
                     self.dx = min(self.dx + self.acc, self.max)
                 else:
                     self.dx = min(self.dx + self.air, self.max)
-        elif not keys[key.RIGHT] and not keys[key.LEFT] and self.flagGround:
+        elif not keys[keymap['right']] and not keys[keymap['left']] and self.flagGround:
             self.dx -= min(abs(self.dx), self.frc) * cmp(self.dx,0)
 
         # Quickly stop downward velocity for debug
@@ -199,7 +207,7 @@ class Ball(object):
             self.flagGround = False
             self.flagAllowJump = False
             self.flagJumpNextFrame = False
-        if keys[key.Z] and self.flagGround and self.flagAllowJump:
+        if keys[keymap['jump']] and self.flagGround and self.flagAllowJump:
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
