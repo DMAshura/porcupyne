@@ -45,23 +45,26 @@ from collide import *
 
 from rabbyt.sprites import Sprite
 
-GAMEDATA_PATH = 'gamedata'
 
 #Load resources
+GAMEDATA_PATH = 'gamedata'
 resource.path.append(GAMEDATA_PATH)
 resource.reindex()
+loaded_sounds = {}
 
+# Game engine constants
 GAME_WIDTH = 640
 GAME_HEIGHT = 480
 
 FAILSAFE_AMOUNT = 20.0
+SCALE = 120
 
 BG_IMAGE = 'bg.jpg'
 BALL_IMAGE = 'BlueBall.png'
 SENSOR_IMAGE = 'Sensor.png'
 PLATFORM_IMAGE = 'Platform.png'
 
-DRAW_SENSORS = True
+DRAW_SENSORS = False
 
 SLOPE_TEST = 4 # allow 4 pixels
 
@@ -81,33 +84,22 @@ keymap = {'up':    key.UP,
           'size6': key.NUM_6}
 inv_keymap = dict((key,symbol) for symbol, key in keymap.iteritems())
 
-
-INPUT_DELAY = 10
-
-input_queue = []
-for _ in range(0, INPUT_DELAY):
-    input_queue.append(0)
-
-window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT,
-                              vsync = False,
-                              caption = "Porcupyne",
-                              resizable = False)
-window.invalid = False
-SCALE = 120
-
-Player2 = None
-
+# Utility functions
 def center_image(image):
     image.anchor_x = image.width/2
     image.anchor_y = image.height/2
-
-loaded_sounds = {}
 
 def play_sound(name):
     if name not in loaded_sounds:
         loaded_sounds[name] = pyglet.media.load(os.path.join(
             GAMEDATA_PATH, 'sounds', '%s.wav' % name), streaming = False)
     loaded_sounds[name].play()
+
+
+class Game:
+    def __init__(self):
+        self.window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT, vsync = False, caption = "Porcupyne",resizable = True)
+        self.window.invalid = False
 
 class Sensor(pyglet.sprite.Sprite):
     sensor_image = resource.image(SENSOR_IMAGE)
@@ -118,10 +110,11 @@ class Sensor(pyglet.sprite.Sprite):
     def __init__(self):
         x = 0
         y = 0
-
         super(Sensor, self).__init__(self.sensor_image, x, y)
+        self.collision= SpriteCollision(self)
 
-        self.collision = SpriteCollision(self)
+    def collide(self, other):
+        return collide(self.collision, other.collision)
 
 class Platform(pyglet.sprite.Sprite):
     platform_image = resource.image(PLATFORM_IMAGE)
@@ -252,41 +245,26 @@ class Ball(object):
         self.sensor_ground.x = int(self.x)
         self.sensor_ground.y = int(self.y) - self.height/2.0 - self.sensor_bottom.height/2.0
 
-    def collision_top(self, other):
-        return collide(self.sensor_top.collision, other.collision)
-
-    def collision_bottom(self, other):
-        return collide(self.sensor_bottom.collision, other.collision)
-
-    def collision_left(self, other):
-        return collide(self.sensor_left.collision, other.collision)
-
-    def collision_right(self, other):
-        return collide(self.sensor_right.collision, other.collision)
-
-    def collision_ground(self, other):
-        return collide(self.sensor_ground.collision, other.collision)
-
     def perform_speed_movement(self, dt):
         collided = False
         for i in range(0, int(FAILSAFE_AMOUNT)):
             self.x += self.dx/FAILSAFE_AMOUNT * dt
             self.update_sensors()
             for platform in platforms:
-                if self.collision_bottom(platform):
+                if self.sensor_bottom.collide(platform):
                     # first, try see if it's a small slope
                     for _ in xrange(SLOPE_TEST):
                         self.y += 1
                         self.update_sensors()
-                        if not self.collision_bottom(platform):
+                        if not self.sensor_bottom.collide(platform):
                             break
-                if self.collision_left(platform) or self.collision_right(platform):
+                if self.sensor_left.collide(platform) or self.sensor_right.collide(platform):
                     self.update_sensors()
-                    while self.collision_left(platform):
+                    while self.sensor_left.collide(platform):
                         collided = True
                         self.x += 1
                         self.update_sensors()
-                    while self.collision_right(platform):
+                    while self.sensor_right.collide(platform):
                         collided = True
                         self.x -= 1
                         self.update_sensors()
@@ -304,14 +282,14 @@ class Ball(object):
             self.y += (self.dy/FAILSAFE_AMOUNT) * dt
             self.update_sensors()
             for platform in platforms:
-                while self.collision_bottom(platform):
+                while self.sensor_bottom.collide(platform):
                     collided = True
                     if self.dy > 0:
                         self.y -= 1
                     else:
                         self.y += 1
                     self.update_sensors()
-                while self.collision_top(platform):
+                while self.sensor_top.collide(platform):
                     collided = True
                     if self.dy > 0:
                         self.y -= 1
@@ -327,7 +305,7 @@ class Ball(object):
 
     def perform_ground_test(self):
         for platform in platforms:
-            if self.collision_ground(platform):
+            if self.sensor_ground.collide(platform):
                 return True
         self.flagGround = False
         return False
@@ -489,6 +467,13 @@ def on_draw(dt):
     debug_text_1.draw()
     debug_text_2.draw()
     debug_text_3.draw()
+
+
+# Temporary code to get the commit functional, this MUST BE CHANGED SOON!
+windowHolder = Game();
+window = windowHolder.window
+if __name__ == "main":
+    pass
 
 myball = Ball()
 mybg = BG()
