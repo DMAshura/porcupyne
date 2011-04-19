@@ -2,21 +2,22 @@
 #-*- coding: utf-8 -*-
 
 # ====================
-# | porcupyne Engine |
+# | Porcupyne Engine |
 # ====================
-# (c) 2011 Bill Shillito ("DM Ashura") and Mathias "Mat²" Kærlev
+# (c) 2011
+#    Bill Shillito (DM Ashura)
+#    Jakub Gedeon
+#    Mathias Kærlev (Mat²)
 # Obviously we mean this code, not Sonic. :P  Sonic is (c) Sega and Sonic Team.
 #
-# Thanks to those from #pyglet on FreeNode IRC for your help!
+# This file is part of Porcupyne.
 #
-# This file is part of porcupyne.
-#
-#    porcupyne is free software: you can redistribute it and/or modify
+#    Porcupyne is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
 #
-#    porcupyne is distributed in the hope that it will be useful,
+#    Porcupyne is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
@@ -25,6 +26,20 @@
 #    along with porcupyne.  If not, see <http://www.gnu.org/licenses/>.
 #
 # This engine requires pyglet.  You can get it at www.pyglet.org.
+#
+# Special Thanks:
+#   Al Murray (r0guey0shi) and Héctor Barreiro (Damizean)
+#     for their work on the Sonic Worlds and Sonic Dash engines
+#     from which this code is partially ported.
+#   Mercury at Sonic Retro (www.sonicretro.org)
+#     for his Sonic Physics Guide
+#     (http://info.sonicretro.org/Sonic_Physics_Guide)
+#     from which this code is partially ported.
+#   #pyglet and #python on FreeNode IRC
+#     for their help and patience
+#   Steve Johnson (SonicWarriorTJ)
+#     for our sweet logo
+#   SEGA and Sonic Team!
 
 import math
 import os
@@ -61,6 +76,8 @@ BALL_IMAGE = 'BlueBall.png'
 SENSOR_IMAGE = 'Sensor.png'
 PLATFORM_IMAGE = 'Platform.png'
 
+DRAW_SENSORS = True
+
 SLOPE_TEST = 4 # allow 4 pixels
 
 # Define key mappings here so we can change them if necessary,
@@ -69,7 +86,16 @@ keymap = {'up':    key.UP,
           'down':  key.DOWN,
           'left':  key.LEFT,
           'right': key.RIGHT,
-          'jump':  key.Z}
+          'jump':  key.Z,
+          'reset': key.F,
+          'size1': key.NUM_1,
+          'size2': key.NUM_2,
+          'size3': key.NUM_3,
+          'size4': key.NUM_4,
+          'size5': key.NUM_5,
+          'size6': key.NUM_6}
+inv_keymap = dict((key,symbol) for symbol, key in keymap.iteritems())
+
 
 INPUT_DELAY = 10
 
@@ -139,7 +165,15 @@ class Ball(object):
         # Sensors
 
         self.sensor_bottom = Sensor()
-        self.sensors = [self.sensor_bottom]
+        self.sensor_top = Sensor()
+        self.sensor_left = Sensor()
+        self.sensor_right = Sensor()
+        self.sensor_ground = Sensor()
+        self.sensors = [self.sensor_bottom,
+                        self.sensor_top,
+                        self.sensor_left,
+                        self.sensor_right,
+                        self.sensor_ground]
 
         # Values according to the Sonic Physics Guide
         self.acc = 0.046875 * SCALE
@@ -169,11 +203,6 @@ class Ball(object):
         self.keyRight = False
         self.keyJump = False
 
-        window.push_handlers(on_key_release = self.key_released)
-
-    def key_released(self, symbol, modifiers):
-        if symbol == key.Z:
-            self.release_jump()
 
     def release_jump(self):
         self.dy = min(self.dy, self.jmpweak)
@@ -186,13 +215,6 @@ class Ball(object):
         self.sprite.x = int(x)
         self.sprite.y = int(y)
         self.update_sensors()
-
-    def unpack_input(self, keydata):
-        self.keyUp    = bool(keydata & 0b1)
-        self.keyDown  = bool(keydata & 0b10)
-        self.keyLeft  = bool(keydata & 0b100)
-        self.keyRight = bool(keydata & 0b1000)
-        self.keyJump  = bool(keydata & 0b10000)
 
     def handle_input(self):
         # Speed input and management
@@ -230,8 +252,35 @@ class Ball(object):
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
+        self.sensor_top.x = int(self.x)
+        self.sensor_top.y = int(self.y) + self.height/2.0 - self.sensor_bottom.height/2.0
+
         self.sensor_bottom.x = int(self.x)
-        self.sensor_bottom.y = int(self.y) - self.width/2.0 + self.sensor_bottom.width/2.0
+        self.sensor_bottom.y = int(self.y) - self.height/2.0 + self.sensor_bottom.height/2.0
+
+        self.sensor_left.x = int(self.x) - self.width/2.0 + self.sensor_left.width/2.0
+        self.sensor_left.y = int(self.y)
+
+        self.sensor_right.x = int(self.x) + self.width/2.0 - self.sensor_left.width/2.0
+        self.sensor_right.y = int(self.y)
+
+        self.sensor_ground.x = int(self.x)
+        self.sensor_ground.y = int(self.y) - self.height/2.0 - self.sensor_bottom.height/2.0
+
+    def collision_top(self, other):
+        return collide(self.sensor_top.collision, other.collision)
+
+    def collision_bottom(self, other):
+        return collide(self.sensor_bottom.collision, other.collision)
+
+    def collision_left(self, other):
+        return collide(self.sensor_left.collision, other.collision)
+
+    def collision_right(self, other):
+        return collide(self.sensor_right.collision, other.collision)
+
+    def collision_ground(self, other):
+        return collide(self.sensor_ground.collision, other.collision)
 
     def perform_speed_movement(self, dt):
         collided = False
@@ -239,26 +288,23 @@ class Ball(object):
             self.x += self.dx/FAILSAFE_AMOUNT * dt
             self.update_sensors()
             for platform in platforms:
-                startY = self.y
-                if collide(self.sensor_bottom.collision, platform.collision):
+                if self.collision_bottom(platform):
                     # first, try see if it's a small slope
                     for _ in xrange(SLOPE_TEST):
                         self.y += 1
                         self.update_sensors()
-                        if not collide(self.sensor_bottom.collision, 
-                                       platform.collision):
+                        if not self.collision_bottom(platform):
                             break
-                    else:
-                        self.y = startY
+                if self.collision_left(platform) or self.collision_right(platform):
+                    self.update_sensors()
+                    while self.collision_left(platform):
+                        collided = True
+                        self.x += 1
                         self.update_sensors()
-                        while collide(self.sensor_bottom.collision, 
-                                      platform.collision):
-                            collided = True
-                            if self.dx > 0:
-                                self.x -= 1
-                            else:
-                                self.x += 1
-                            self.update_sensors()
+                    while self.collision_right(platform):
+                        collided = True
+                        self.x -= 1
+                        self.update_sensors()
             if collided:
                 self.dx = 0
                 break
@@ -273,7 +319,14 @@ class Ball(object):
             self.y += (self.dy/FAILSAFE_AMOUNT) * dt
             self.update_sensors()
             for platform in platforms:
-                while collide(self.sensor_bottom.collision, platform.collision):
+                while self.collision_bottom(platform):
+                    collided = True
+                    if self.dy > 0:
+                        self.y -= 1
+                    else:
+                        self.y += 1
+                    self.update_sensors()
+                while self.collision_top(platform):
                     collided = True
                     if self.dy > 0:
                         self.y -= 1
@@ -287,16 +340,53 @@ class Ball(object):
         
         self.sprite.y = int(self.y)
 
+    def perform_ground_test(self):
+        for platform in platforms:
+            if self.collision_ground(platform):
+                return True
+        self.flagGround = False
+        return False
+
     def update(self, dt):
         if self.flagGround and not self.keyJump:
             self.flagAllowJump = True
         self.handle_input()
         self.perform_speed_movement(dt)
-        if not self.flagGround:
+        if not self.flagGround or not self.perform_ground_test():
             self.perform_gravity_movement(dt)
     
     def draw(self):
         self.sprite.render()
+
+    def key_press(self, message):
+        if message == 'up':
+            self.keyUp = True
+        elif message == 'down':
+            self.keyDown = True
+        elif message == 'left':
+            self.keyLeft = True
+        elif message == 'right':
+            self.keyRight = True
+        elif message == 'jump':
+            self.keyJump = True
+        elif message == 'reset':
+            self.set_position(100,95)
+            self.dx = 0
+            self.dy = 0
+
+    def key_release(self, message):
+        if message == 'up':
+            self.keyUp = False
+        elif message == 'down':
+            self.keyDown = False
+        elif message == 'left':
+            self.keyLeft = False
+        elif message == 'right':
+            self.keyRight = False
+        elif message == 'jump':
+            self.keyJump = False
+            self.release_jump()
+        
 
 class BG(pyglet.sprite.Sprite):
     bg_image = resource.image(BG_IMAGE)
@@ -313,52 +403,42 @@ class BG(pyglet.sprite.Sprite):
     def update(self, dt):
         self.x += self.dx * dt
 
-@window.event
-def on_key_press(symbol, modifiers):
-    global GRAVITY
-    if symbol == key.ESCAPE:
-        window_has_exit = True
-    elif symbol == key.NUM_1:
-        window.set_size(320, 240)
-    elif symbol == key.NUM_2:
-        window.set_size(640, 480)
-    elif symbol == key.NUM_3:
-        window.set_size(960, 720)
-    elif symbol == key.NUM_4:
-        window.set_size(427, 240)
-    elif symbol == key.NUM_5:
-        window.set_size(854, 480)
-    elif symbol == key.NUM_6:
-        window.set_size(1280, 720)
-    elif symbol == key.F:
-        myball.set_position(300, 300)
 
-keys = key.KeyStateHandler()
-window.push_handlers(keys)
+class Controller:
+    def __init__(self):
+        window.push_handlers(on_key_press = self.handle_key_press)
+        window.push_handlers(on_key_release = self.handle_key_release)
 
-def handle_input():
-    # Pack data into a single variable.
-    keydata = 0
-    keydata = keydata | (keys[keymap['up']]    * 0b1)
-    keydata = keydata | (keys[keymap['down']]  * 0b10)
-    keydata = keydata | (keys[keymap['left']]  * 0b100)
-    keydata = keydata | (keys[keymap['right']] * 0b1000)
-    keydata = keydata | (keys[keymap['jump']]  * 0b10000)
-    
-    return keydata
+    def handle_key_press(self, symbol, modifiers):
+        if not symbol in inv_keymap:
+            return
+        message = inv_keymap[symbol]
+        myball.key_press(message)
+        # player2.key_press(message)
+
+    def handle_key_release(self, symbol, modifiers):
+        if not symbol in inv_keymap:
+            return
+        message = inv_keymap[symbol]
+        myball.key_release(message)
+        # player2.key_release(message)
+        #resize code        
+        if message == 'size1':
+            window.set_size(320, 240)
+        elif message == 'size2':
+            window.set_size(640, 480)
+        elif message == 'size3':
+            window.set_size(960, 720)
+        elif message == 'size4':
+            window.set_size(427, 240)
+        elif message == 'size5':
+            window.set_size(854, 480)
+        elif message == 'size6':
+            window.set_size(1280, 720)
+
 
 def update(dt):
-    keydata = handle_input()
-    myball.unpack_input(keydata)
     myball.update(dt)
-
-    # This code will come in handy for 1.5-player games.
-    keydata_delayed = input_queue.pop(0)
-    input_queue.append(keydata)
-    # The value in keydata_delayed can now be sent to a second player
-    if Player2:
-        Player2.unpack_input(keydata_delayed)
-        Player2.update(dt)
 
     mybg.update(dt)
     
@@ -398,24 +478,32 @@ def on_draw(dt):
     glMatrixMode(gl.GL_MODELVIEW)
     glLoadIdentity()
 
-    # I can eventually use this to change the camera. 
-    #glTranslatef(window.width/window.scale/2, window.height/window.scale/2, 0.0)
+    # Draw stuff in the level.
     glPushMatrix()
     glTranslatef(int(-myball.x), int(-myball.y), 0.0)
+
     mybg.draw()
-    myball.draw()
-    for sensor in myball.sensors:
-        sensor.draw()
+
     for platform in platforms:
         platform.draw()
+
+    myball.draw()
+    if DRAW_SENSORS:
+        for sensor in myball.sensors:
+            sensor.draw()
     
     glPopMatrix()
 
-    fps_display.text = '%d' % (1 / dt)
+    # Draw HUD.
+    fps_display.text = 'FPS: %d' % (1 / dt)
     fps_display.draw()
 
-    debug_text.text = str(myball.flagGround)
-    debug_text.draw()
+    debug_text_1.text = str(myball.flagGround)
+    debug_text_2.text = '0'
+    debug_text_3.text = '0'
+    debug_text_1.draw()
+    debug_text_2.draw()
+    debug_text_3.draw()
 
 myball = Ball()
 mybg = BG()
@@ -423,13 +511,17 @@ platforms = [
     Platform(0, -128),
     Platform(128, 0)
 ]
+mycontroller = Controller()
 
 import pyglet.font
-fps_display = pyglet.font.Text(pyglet.font.load('', 36, bold = True), '', 
-    color=(0.5, 0.5, 0.5, 0.5), x = 10, y = 10)
+
+fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
+    color=(0.5, 0.5, 0.5, 0.5), x=-300, y=-200)
 
 ft = font.load('Arial', 20)
-debug_text = font.Text(ft, y=-200)
+debug_text_1 = font.Text(ft, x=200, y=200)
+debug_text_2 = font.Text(ft, x=200, y=170)
+debug_text_3 = font.Text(ft, x=200, y=140)
 
 pyglet.clock.schedule_interval(update, 1 / 60.0)
 pyglet.app.run()
