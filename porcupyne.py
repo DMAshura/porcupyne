@@ -247,7 +247,6 @@ class Ball(object):
 
     def perform_gravity_movement(self, dt):
         self.dy = max(self.dy - self.grv, -self.maxg)
-        self.flagGround = False
         collided = False
 
         # Failsafe movement
@@ -274,7 +273,8 @@ class Ball(object):
             self.flagAllowJump = True
         self.handle_input()
         self.perform_speed_movement(dt)
-        self.perform_gravity_movement(dt)
+        if not self.flagGround:
+            self.perform_gravity_movement(dt)
     
     def draw(self):
         self.sprite.render()
