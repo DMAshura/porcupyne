@@ -61,28 +61,31 @@ from collide import *
 
 from rabbyt.sprites import Sprite
 
+# This will be in a separate module's root namespace, but for now it is just it's own class
+# This way, very little code will have to be changed when this changes
+# Does not include keymap... this seems like it should go in the Controller file instead
+class const:
+    GAMEDATA_PATH = 'gamedata'
+    # Game engine constants
+    GAME_WIDTH = 640
+    GAME_HEIGHT = 480
+
+    FAILSAFE_AMOUNT = 20.0
+    SCALE = 120
+
+    BG_IMAGE = 'bg.jpg'
+    BALL_IMAGE = 'BlueBall.png'
+    SENSOR_IMAGE = 'Sensor.png'
+    PLATFORM_IMAGE = 'Platform.png'
+
+    DRAW_SENSORS = True
+
+    SLOPE_TEST = 4 # allow 4 pixels
 
 #Load resources
-GAMEDATA_PATH = 'gamedata'
-resource.path.append(GAMEDATA_PATH)
+resource.path.append(const.GAMEDATA_PATH)
 resource.reindex()
 loaded_sounds = {}
-
-# Game engine constants
-GAME_WIDTH = 640
-GAME_HEIGHT = 480
-
-FAILSAFE_AMOUNT = 20.0
-SCALE = 120
-
-BG_IMAGE = 'bg.jpg'
-BALL_IMAGE = 'BlueBall.png'
-SENSOR_IMAGE = 'Sensor.png'
-PLATFORM_IMAGE = 'Platform.png'
-
-DRAW_SENSORS = True
-
-SLOPE_TEST = 4 # allow 4 pixels
 
 # Define key mappings here so we can change them if necessary,
 # either here or even in a key config menu ingame
@@ -108,20 +111,22 @@ def center_image(image):
 def play_sound(name):
     if name not in loaded_sounds:
         loaded_sounds[name] = pyglet.media.load(os.path.join(
-            GAMEDATA_PATH, 'sounds', '%s.wav' % name), streaming = False)
+            const.GAMEDATA_PATH, 'sounds', '%s.wav' % name), streaming = False)
     loaded_sounds[name].play()
 
 
 class Game:
     def __init__(self):
-        self.window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT, vsync = False, caption = "Porcupyne",resizable = True)
+        self.window = pyglet.window.Window(width = const.GAME_WIDTH, height = const.GAME_HEIGHT, vsync = False, caption = "Porcupyne",resizable = True)
         self.window.invalid = False
 
         self.player1 = Ball(self)
         self.bg = BG()
         self.platforms = [
             Platform(0, -128),
-            Platform(128, 0)
+            Platform(128, 0),
+            Platform(-270, -50),
+            Platform(-320, 150)
         ]
         self.controller = Controller(self.window, self.player1)
         self.fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
@@ -184,7 +189,7 @@ class Game:
             platform.draw()
 
         self.player1.draw()
-        if DRAW_SENSORS:
+        if const.DRAW_SENSORS:
             for sensor in self.player1.sensors:
                 sensor.draw()
         
@@ -202,7 +207,7 @@ class Game:
         self.debug_text[2].draw()
 
 class Sensor(pyglet.sprite.Sprite):
-    sensor_image = resource.image(SENSOR_IMAGE)
+    sensor_image = resource.image(const.SENSOR_IMAGE)
     center_image(sensor_image)
     width = sensor_image.width
     height = sensor_image.height
@@ -217,7 +222,7 @@ class Sensor(pyglet.sprite.Sprite):
         return collide(self.collision, other.collision)
 
 class Platform(pyglet.sprite.Sprite):
-    platform_image = resource.image(PLATFORM_IMAGE)
+    platform_image = resource.image(const.PLATFORM_IMAGE)
     center_image(platform_image)
     width = platform_image.width
     height = platform_image.height
@@ -228,7 +233,7 @@ class Platform(pyglet.sprite.Sprite):
         self.collision = SpriteCollision(self)
 
 class Ball(object):
-    ball_image = resource.image(BALL_IMAGE)
+    ball_image = resource.image(const.BALL_IMAGE)
     center_image(ball_image)
     width = ball_image.width
     height = ball_image.height
@@ -255,17 +260,17 @@ class Ball(object):
                         self.sensor_ground]
 
         # Values according to the Sonic Physics Guide
-        self.acc = 0.046875 * SCALE
-        self.frc = 0.046875 * SCALE
-        self.dec = 0.5 * SCALE
-        self.max = 6.0 * SCALE
+        self.acc = 0.046875 * const.SCALE
+        self.frc = 0.046875 * const.SCALE
+        self.dec = 0.5 * const.SCALE
+        self.max = 6.0 * const.SCALE
 
-        self.air = 0.09375 * SCALE
-        self.grv = 0.21875 * SCALE
-        self.maxg = 16.0 * SCALE
+        self.air = 0.09375 * const.SCALE
+        self.grv = 0.21875 * const.SCALE
+        self.maxg = 16.0 * const.SCALE
 
-        self.jmp = 6.5 * SCALE
-        self.jmpweak = 4.0 * SCALE
+        self.jmp = 6.5 * const.SCALE
+        self.jmpweak = 4.0 * const.SCALE
 
         # Flags
 
@@ -348,13 +353,13 @@ class Ball(object):
 
     def perform_speed_movement(self, dt):
         collided = False
-        for i in range(0, int(FAILSAFE_AMOUNT)):
-            self.x += self.dx/FAILSAFE_AMOUNT * dt
+        for i in range(0, int(const.FAILSAFE_AMOUNT)):
+            self.x += self.dx/const.FAILSAFE_AMOUNT * dt
             self.update_sensors()
             for platform in self.game.platforms:
                 if self.sensor_bottom.collide(platform):
                     # first, try see if it's a small slope
-                    for _ in xrange(SLOPE_TEST):
+                    for _ in xrange(const.SLOPE_TEST):
                         self.y += 1
                         self.update_sensors()
                         if not self.sensor_bottom.collide(platform):
@@ -379,8 +384,8 @@ class Ball(object):
         collided = False
 
         # Failsafe movement
-        for i in range(0, int(FAILSAFE_AMOUNT)):
-            self.y += (self.dy/FAILSAFE_AMOUNT) * dt
+        for i in range(0, int(const.FAILSAFE_AMOUNT)):
+            self.y += (self.dy/const.FAILSAFE_AMOUNT) * dt
             self.update_sensors()
             for platform in self.game.platforms:
                 while self.sensor_bottom.collide(platform):
@@ -453,7 +458,7 @@ class Ball(object):
         
 
 class BG(pyglet.sprite.Sprite):
-    bg_image = resource.image(BG_IMAGE)
+    bg_image = resource.image(const.BG_IMAGE)
     center_image(bg_image)
     width = bg_image.width
     height = bg_image.height
