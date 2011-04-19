@@ -100,7 +100,11 @@ keymap = {'up':    key.UP,
           'size3': key.NUM_3,
           'size4': key.NUM_4,
           'size5': key.NUM_5,
-          'size6': key.NUM_6}
+          'size6': key.NUM_6,
+          'gup':   key.W,
+          'gdown': key.S,
+          'gleft': key.A,
+          'gright':key.D}
 inv_keymap = dict((key,symbol) for symbol, key in keymap.iteritems())
 
 # Utility functions
@@ -113,6 +117,13 @@ def play_sound(name):
         loaded_sounds[name] = pyglet.media.load(os.path.join(
             const.GAMEDATA_PATH, 'sounds', '%s.wav' % name), streaming = False)
     loaded_sounds[name].play()
+
+# Sine and Cosine functions in degrees
+def sin(x):
+    return math.sin(math.radians(x))
+
+def cos(x):
+    return math.cos(math.radians(x))
 
 
 class Game:
@@ -260,6 +271,7 @@ class Ball(object):
                         self.sensor_ground]
 
         # Values according to the Sonic Physics Guide
+        
         self.acc = 0.046875 * const.SCALE
         self.frc = 0.046875 * const.SCALE
         self.dec = 0.5 * const.SCALE
@@ -278,9 +290,17 @@ class Ball(object):
         self.flagAllowJump = False
         self.flagJumpNextFrame = False
 
-        self.dx = 0.0
-        self.dy = 0.0
+        # Trig
 
+        self.angle = 0
+        self.gangle = 0
+
+        # Movement (dh = horizontal, dv = vertical.)
+        # These can be rotated using angle and gangle above.
+
+        self.dh = 0.0
+        self.dv = 0.0
+        
         self.keyUp = False
         self.keyDown = False
         self.keyLeft = False
@@ -289,7 +309,7 @@ class Ball(object):
 
 
     def release_jump(self):
-        self.dy = min(self.dy, self.jmpweak)
+        self.dv = min(self.dv, self.jmpweak)
     
     def set_position(self, x = None, y = None):
         x = x or self.x
@@ -303,32 +323,32 @@ class Ball(object):
     def handle_input(self):
         # Speed input and management
         if self.keyLeft:
-            if self.dx > 0 and self.flagGround:
-                self.dx -= self.dec
-                if -self.dec < self.dx < 0:
-                    self.dx = -self.dec
-            elif self.dx > -self.max:
+            if self.dh > 0 and self.flagGround:
+                self.dh -= self.dec
+                if -self.dec < self.dh < 0:
+                    self.dh = -self.dec
+            elif self.dh > -self.max:
                 if self.flagGround:
-                    self.dx = max(self.dx - self.acc, -self.max)
+                    self.dh = max(self.dh - self.acc, -self.max)
                 else:
-                    self.dx = max(self.dx - self.air, -self.max)
+                    self.dh = max(self.dh - self.air, -self.max)
         elif self.keyRight:
-            if self.dx < 0 and self.flagGround:
-                self.dx += self.dec
-                if 0 < self.dx < self.dec:
-                    self.dx = self.dec
-            elif self.dx < self.max:
+            if self.dh < 0 and self.flagGround:
+                self.dh += self.dec
+                if 0 < self.dh < self.dec:
+                    self.dh = self.dec
+            elif self.dh < self.max:
                 if self.flagGround:
-                    self.dx = min(self.dx + self.acc, self.max)
+                    self.dh = min(self.dh + self.acc, self.max)
                 else:
-                    self.dx = min(self.dx + self.air, self.max)
+                    self.dh = min(self.dh + self.air, self.max)
         elif not self.keyLeft and not self.keyRight and self.flagGround:
-            self.dx -= min(abs(self.dx), self.frc) * cmp(self.dx,0)
+            self.dh -= min(abs(self.dh), self.frc) * cmp(self.dh,0)
 
         #Jumping
         if self.flagJumpNextFrame:
             play_sound('jump')
-            self.dy = self.jmp
+            self.dv = self.jmp
             self.flagGround = False
             self.flagAllowJump = False
             self.flagJumpNextFrame = False
@@ -336,27 +356,29 @@ class Ball(object):
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
-        self.sensor_top.x = int(self.x)
-        self.sensor_top.y = int(self.y) + self.height/2.0 - self.sensor_bottom.height/2.0
+        self.sensor_top.x = int(self.x) - sin(self.angle) * (self.height/2.0 - self.sensor_bottom.height/2.0)
+        self.sensor_top.y = int(self.y) + cos(self.angle) * (self.height/2.0 - self.sensor_bottom.height/2.0)
 
-        self.sensor_bottom.x = int(self.x)
-        self.sensor_bottom.y = int(self.y) - self.height/2.0 + self.sensor_bottom.height/2.0
+        self.sensor_bottom.x = int(self.x) + sin(self.angle) * (self.height/2.0 - self.sensor_top.height/2.0)
+        self.sensor_bottom.y = int(self.y) - cos(self.angle) * (self.height/2.0 - self.sensor_top.height/2.0)
 
-        self.sensor_left.x = int(self.x) - self.width/2.0 + self.sensor_left.width/2.0
-        self.sensor_left.y = int(self.y)
+        self.sensor_left.x = int(self.x) - cos(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
+        self.sensor_left.y = int(self.y) - sin(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
 
-        self.sensor_right.x = int(self.x) + self.width/2.0 - self.sensor_left.width/2.0
-        self.sensor_right.y = int(self.y)
+        self.sensor_right.x = int(self.x) + cos(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
+        self.sensor_right.y = int(self.y) + sin(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
 
-        self.sensor_ground.x = int(self.x)
-        self.sensor_ground.y = int(self.y) - self.height/2.0 - self.sensor_bottom.height/2.0
+        self.sensor_ground.x = int(self.x) + sin(self.angle) * (self.height/2.0 + self.sensor_ground.height/2.0)
+        self.sensor_ground.y = int(self.y) - cos(self.angle) * (self.height/2.0 + self.sensor_ground.height/2.0)
 
     def perform_speed_movement(self, dt):
         collided = False
         for i in range(0, int(const.FAILSAFE_AMOUNT)):
-            self.x += self.dx/const.FAILSAFE_AMOUNT * dt
+            self.x += cos(self.angle) * self.dh/const.FAILSAFE_AMOUNT * dt
+            self.y += sin(self.angle) * self.dh/const.FAILSAFE_AMOUNT * dt
             self.update_sensors()
             for platform in self.game.platforms:
+                '''
                 if self.sensor_bottom.collide(platform):
                     # first, try see if it's a small slope
                     for _ in xrange(const.SLOPE_TEST):
@@ -364,15 +386,18 @@ class Ball(object):
                         self.update_sensors()
                         if not self.sensor_bottom.collide(platform):
                             break
+                '''
                 if self.sensor_left.collide(platform) or self.sensor_right.collide(platform):
                     self.update_sensors()
                     while self.sensor_left.collide(platform):
                         collided = True
-                        self.x += 1
+                        self.x += cos(self.angle)
+                        self.y += sin(self.angle)
                         self.update_sensors()
                     while self.sensor_right.collide(platform):
                         collided = True
-                        self.x -= 1
+                        self.x -= cos(self.angle)
+                        self.y -= sin(self.angle)
                         self.update_sensors()
             if collided:
                 self.dx = 0
@@ -380,31 +405,37 @@ class Ball(object):
         self.sprite.x = int(self.x)
 
     def perform_gravity_movement(self, dt):
-        self.dy = max(self.dy - self.grv, -self.maxg)
+        self.dv = max(self.dv - self.grv, -self.maxg)
         collided = False
 
         # Failsafe movement
         for i in range(0, int(const.FAILSAFE_AMOUNT)):
-            self.y += (self.dy/const.FAILSAFE_AMOUNT) * dt
+            self.y += cos(self.angle) * (self.dv/const.FAILSAFE_AMOUNT) * dt
+            self.x -= sin(self.angle) * (self.dv/const.FAILSAFE_AMOUNT) * dt
             self.update_sensors()
             for platform in self.game.platforms:
                 while self.sensor_bottom.collide(platform):
                     collided = True
-                    if self.dy > 0:
-                        self.y -= 1
+                    if self.dv > 0:
+                        self.y -= cos(self.angle)
+                        self.x += sin(self.angle)
                     else:
-                        self.y += 1
+                        self.y += cos(self.angle)
+                        self.x -= sin(self.angle)
                     self.update_sensors()
                 while self.sensor_top.collide(platform):
                     collided = True
-                    if self.dy > 0:
-                        self.y -= 1
+                    if self.dv > 0:
+                        self.y -= cos(self.angle)
+                        self.x += sin(self.angle)
                     else:
-                        self.y += 1
+                        self.y += cos(self.angle)
+                        self.x -= sin(self.angle)
                     self.update_sensors()
             if collided:
-                self.flagGround = True
-                self.dy = 0
+                if self.dv < 0:
+                    self.flagGround = True
+                self.dv = 0
                 break
         
         self.sprite.y = int(self.y)
@@ -440,8 +471,16 @@ class Ball(object):
             self.keyJump = True
         elif message == 'reset':
             self.set_position(100,95)
-            self.dx = 0
-            self.dy = 0
+            self.dv = 0
+            self.dh = 0
+        elif message == 'gdown':
+            self.angle = 0
+        elif message == 'gright':
+            self.angle = 90
+        elif message == 'gup':
+            self.angle = 180
+        elif message == 'gleft':
+            self.angle = 270
 
     def key_release(self, message):
         if message == 'up':

@@ -6,3 +6,7 @@ ISSUES:
 2.  If character is jumping while the game is "hiccuping" (due to, say,
     an IM being received), character will jump incredibly high.  I feel
     this may be related to the dt value somehow.
+3.  The character sprite often does not update when moving if
+    angle != 0.
+4.  Movement is quite buggy ... hopefully this will iron itself out as
+    more physics are added.
