@@ -45,13 +45,14 @@ import math
 import os
 import random
 import sys
-
 import pyglet
 from pyglet.window import key
 from pyglet import resource
 from pyglet import clock
 from pyglet import font
 from pyglet import gl
+
+import pyglet.font
 
 from pyglet.gl import (glLoadIdentity, glTranslatef, glLoadIdentity,
     glPushMatrix, glPopMatrix, glViewport, glMatrixMode, glOrtho)
@@ -79,7 +80,7 @@ BALL_IMAGE = 'BlueBall.png'
 SENSOR_IMAGE = 'Sensor.png'
 PLATFORM_IMAGE = 'Platform.png'
 
-DRAW_SENSORS = False
+DRAW_SENSORS = True
 
 SLOPE_TEST = 4 # allow 4 pixels
 
@@ -116,6 +117,90 @@ class Game:
         self.window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT, vsync = False, caption = "Porcupyne",resizable = True)
         self.window.invalid = False
 
+        self.player1 = Ball(self)
+        self.bg = BG()
+        self.platforms = [
+            Platform(0, -128),
+            Platform(128, 0)
+        ]
+        self.controller = Controller(self.window, self.player1)
+        self.fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
+            color=(0.5, 0.5, 0.5, 0.5), x=-300, y=-200)
+
+        ft = font.load('Arial', 20)
+        self.debug_text = [font.Text(ft, x=200, y=200),
+                      font.Text(ft, x=200, y=170),
+                      font.Text(ft, x=200, y=140)]
+
+
+    def update(self, dt):
+        self.player1.update(dt)
+
+        self.bg.update(dt)
+        
+        #if window.has_exit:
+        #    return
+        self.window.switch_to()
+        self.on_draw(dt)
+        self.window.flip()
+
+    def on_draw(self, dt):
+        self.window.clear()
+
+        # This is where the code to auto-resize the window begins.
+
+        # Set it up to draw to the whole space of the window.
+        glViewport(0, 0, self.window.width, self.window.height)
+
+        # Switch to projection matrix.
+        glMatrixMode(gl.GL_PROJECTION)
+        glLoadIdentity()
+
+        # Calculate the size of our display.
+        base_size = 480.0
+        size_x = 0.0
+        size_y = 0.0
+        if (self.window.width >= self.window.height):
+            size_x = base_size * (self.window.width/float(self.window.height))
+            size_y = base_size
+        else:
+            size_x = base_size
+            size_y = base_size * (self.window.height/float(self.window.width))
+
+        # Set the orthogonal projection.
+        glOrtho(-size_x/2.0, size_x/2.0, -size_y/2.0, size_y/2.0, -100, 100)
+
+        # Switch back to model view so we can do the rest of our drawing.
+        glMatrixMode(gl.GL_MODELVIEW)
+        glLoadIdentity()
+
+        # Draw stuff in the level.
+        glPushMatrix()
+        glTranslatef(int(-self.player1.x), int(-self.player1.y), 0.0)
+
+        self.bg.draw()
+
+        for platform in self.platforms:
+            platform.draw()
+
+        self.player1.draw()
+        if DRAW_SENSORS:
+            for sensor in self.player1.sensors:
+                sensor.draw()
+        
+        glPopMatrix()
+
+        # Draw HUD.
+        self.fps_display.text = 'FPS: %d' % (1 / dt)
+        self.fps_display.draw()
+
+        self.debug_text[0].text = str(self.player1.flagGround)
+        self.debug_text[1].text = '0'
+        self.debug_text[2].text = '0'
+        self.debug_text[0].draw()
+        self.debug_text[1].draw()
+        self.debug_text[2].draw()
+
 class Sensor(pyglet.sprite.Sprite):
     sensor_image = resource.image(SENSOR_IMAGE)
     center_image(sensor_image)
@@ -149,7 +234,8 @@ class Ball(object):
     height = ball_image.height
     sprite = None
 
-    def __init__(self):
+    def __init__(self, game):
+        self.game = game
         x = y = 200
         self.sprite = Sprite(self.ball_image, x = x, y = y)
         self.x = x
@@ -265,7 +351,7 @@ class Ball(object):
         for i in range(0, int(FAILSAFE_AMOUNT)):
             self.x += self.dx/FAILSAFE_AMOUNT * dt
             self.update_sensors()
-            for platform in platforms:
+            for platform in self.game.platforms:
                 if self.sensor_bottom.collide(platform):
                     # first, try see if it's a small slope
                     for _ in xrange(SLOPE_TEST):
@@ -296,7 +382,7 @@ class Ball(object):
         for i in range(0, int(FAILSAFE_AMOUNT)):
             self.y += (self.dy/FAILSAFE_AMOUNT) * dt
             self.update_sensors()
-            for platform in platforms:
+            for platform in self.game.platforms:
                 while self.sensor_bottom.collide(platform):
                     collided = True
                     if self.dy > 0:
@@ -319,7 +405,7 @@ class Ball(object):
         self.sprite.y = int(self.y)
 
     def perform_ground_test(self):
-        for platform in platforms:
+        for platform in self.game.platforms:
             if self.sensor_ground.collide(platform):
                 return True
         self.flagGround = False
@@ -383,130 +469,45 @@ class BG(pyglet.sprite.Sprite):
 
 
 class Controller:
-    def __init__(self):
+    def __init__(self, window, player):
         window.push_handlers(on_key_press = self.handle_key_press)
         window.push_handlers(on_key_release = self.handle_key_release)
+        self.player = player
+        self.window = window
 
     def handle_key_press(self, symbol, modifiers):
         if not symbol in inv_keymap:
             return
         message = inv_keymap[symbol]
-        myball.key_press(message)
+        self.player.key_press(message)
         # player2.key_press(message)
 
     def handle_key_release(self, symbol, modifiers):
         if not symbol in inv_keymap:
             return
         message = inv_keymap[symbol]
-        myball.key_release(message)
+        self.player.key_release(message)
         # player2.key_release(message)
         #resize code        
         if message == 'size1':
-            window.set_size(320, 240)
+            self.window.set_size(320, 240)
         elif message == 'size2':
-            window.set_size(640, 480)
+            self.window.set_size(640, 480)
         elif message == 'size3':
-            window.set_size(960, 720)
+            self.window.set_size(960, 720)
         elif message == 'size4':
-            window.set_size(427, 240)
+            self.window.set_size(427, 240)
         elif message == 'size5':
-            window.set_size(854, 480)
+            self.window.set_size(854, 480)
         elif message == 'size6':
-            window.set_size(1280, 720)
+            self.window.set_size(1280, 720)
 
 
-def update(dt):
-    myball.update(dt)
-
-    mybg.update(dt)
-    
-    if window.has_exit:
-        return
-    window.switch_to()
-    on_draw(dt)
-    window.flip()
-
-def on_draw(dt):
-    window.clear()
-
-    # This is where the code to auto-resize the window begins.
-
-    # Set it up to draw to the whole space of the window.
-    glViewport(0, 0, window.width, window.height)
-
-    # Switch to projection matrix.
-    glMatrixMode(gl.GL_PROJECTION)
-    glLoadIdentity()
-
-    # Calculate the size of our display.
-    base_size = 480.0
-    size_x = 0.0
-    size_y = 0.0
-    if (window.width >= window.height):
-        size_x = base_size * (window.width/float(window.height))
-        size_y = base_size
-    else:
-        size_x = base_size
-        size_y = base_size * (window.height/float(window.width))
-
-    # Set the orthogonal projection.
-    glOrtho(-size_x/2.0, size_x/2.0, -size_y/2.0, size_y/2.0, -100, 100)
-
-    # Switch back to model view so we can do the rest of our drawing.
-    glMatrixMode(gl.GL_MODELVIEW)
-    glLoadIdentity()
-
-    # Draw stuff in the level.
-    glPushMatrix()
-    glTranslatef(int(-myball.x), int(-myball.y), 0.0)
-
-    mybg.draw()
-
-    for platform in platforms:
-        platform.draw()
-
-    myball.draw()
-    if DRAW_SENSORS:
-        for sensor in myball.sensors:
-            sensor.draw()
-    
-    glPopMatrix()
-
-    # Draw HUD.
-    fps_display.text = 'FPS: %d' % (1 / dt)
-    fps_display.draw()
-
-    debug_text_1.text = str(myball.flagGround)
-    debug_text_2.text = '0'
-    debug_text_3.text = '0'
-    debug_text_1.draw()
-    debug_text_2.draw()
-    debug_text_3.draw()
 
 
 # Temporary code to get the commit functional, this MUST BE CHANGED SOON!
-windowHolder = Game();
-window = windowHolder.window
-if __name__ == "main":
-    pass
+if __name__ == "__main__":
+    game = Game();
 
-myball = Ball()
-mybg = BG()
-platforms = [
-    Platform(0, -128),
-    Platform(128, 0)
-]
-mycontroller = Controller()
-
-import pyglet.font
-
-fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
-    color=(0.5, 0.5, 0.5, 0.5), x=-300, y=-200)
-
-ft = font.load('Arial', 20)
-debug_text_1 = font.Text(ft, x=200, y=200)
-debug_text_2 = font.Text(ft, x=200, y=170)
-debug_text_3 = font.Text(ft, x=200, y=140)
-
-pyglet.clock.schedule_interval(update, 1 / 60.0)
-pyglet.app.run()
+    pyglet.clock.schedule_interval(game.update, 1 / 60.0)
+    pyglet.app.run()
