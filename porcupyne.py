@@ -2,21 +2,22 @@
 #-*- coding: utf-8 -*-
 
 # ====================
-# | porcupyne Engine |
+# | Porcupyne Engine |
 # ====================
-# (c) 2011 Bill Shillito ("DM Ashura") and Mathias "Mat²" Kærlev
+# (c) 2011
+#    Bill Shillito (DM Ashura)
+#    Jakub Gedeon
+#    Mathias Kærlev (Mat²)
 # Obviously we mean this code, not Sonic. :P  Sonic is (c) Sega and Sonic Team.
 #
-# Thanks to those from #pyglet on FreeNode IRC for your help!
+# This file is part of Porcupyne.
 #
-# This file is part of porcupyne.
-#
-#    porcupyne is free software: you can redistribute it and/or modify
+#    Porcupyne is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
 #    (at your option) any later version.
 #
-#    porcupyne is distributed in the hope that it will be useful,
+#    Porcupyne is distributed in the hope that it will be useful,
 #    but WITHOUT ANY WARRANTY; without even the implied warranty of
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
@@ -25,6 +26,20 @@
 #    along with porcupyne.  If not, see <http://www.gnu.org/licenses/>.
 #
 # This engine requires pyglet.  You can get it at www.pyglet.org.
+#
+# Special Thanks:
+#   Al Murray (r0guey0shi) and Héctor Barreiro Cabrera (Damizean)
+#     for their work on the Sonic Worlds and Sonic Dash engines
+#     from which this code is partially ported.
+#   Mercury at Sonic Retro (www.sonicretro.org)
+#     for his Sonic Physics Guide
+#     (http://info.sonicretro.org/Sonic_Physics_Guide)
+#     from which this code is partially ported.
+#   #pyglet and #python on FreeNode IRC
+#     for their help and patience
+#   Steve Johnson (SonicWarriorTJ)
+#     for our sweet logo
+#   SEGA and Sonic Team!
 
 import math
 import os
