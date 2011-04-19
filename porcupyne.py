@@ -5,7 +5,7 @@
 # | porcupyne Engine |
 # ====================
 # (c) 2011 Bill Shillito ("DM Ashura") and Mathias "Mat²" Kærlev
-# Obviously we mean this code, not Sonic. :P  Sonic is (c) Sega and Sonic Team.)
+# Obviously we mean this code, not Sonic. :P  Sonic is (c) Sega and Sonic Team.
 #
 # Thanks to those from #pyglet on FreeNode IRC for your help!
 #
@@ -71,12 +71,20 @@ keymap = {'up':    key.UP,
           'right': key.RIGHT,
           'jump':  key.Z}
 
+INPUT_DELAY = 10
+
+input_queue = []
+for _ in range(0, INPUT_DELAY):
+    input_queue.append(0)
+
 window = pyglet.window.Window(width = GAME_WIDTH, height = GAME_HEIGHT,
                               vsync = False,
-                              caption = "Sonic Gemini derp test!",
+                              caption = "Porcupyne",
                               resizable = False)
 window.invalid = False
 SCALE = 120
+
+Player2 = None
 
 def center_image(image):
     image.anchor_x = image.width/2
@@ -155,6 +163,12 @@ class Ball(object):
         self.dx = 0.0
         self.dy = 0.0
 
+        self.keyUp = False
+        self.keyDown = False
+        self.keyLeft = False
+        self.keyRight = False
+        self.keyJump = False
+
         window.push_handlers(on_key_release = self.key_released)
 
     def key_released(self, symbol, modifiers):
@@ -173,9 +187,16 @@ class Ball(object):
         self.sprite.y = int(y)
         self.update_sensors()
 
+    def unpack_input(self, keydata):
+        self.keyUp    = bool(keydata & 0b1)
+        self.keyDown  = bool(keydata & 0b10)
+        self.keyLeft  = bool(keydata & 0b100)
+        self.keyRight = bool(keydata & 0b1000)
+        self.keyJump  = bool(keydata & 0b10000)
+
     def handle_input(self):
         # Speed input and management
-        if keys[keymap['left']]:
+        if self.keyLeft:
             if self.dx > 0 and self.flagGround:
                 self.dx -= self.dec
                 if -self.dec < self.dx < 0:
@@ -185,7 +206,7 @@ class Ball(object):
                     self.dx = max(self.dx - self.acc, -self.max)
                 else:
                     self.dx = max(self.dx - self.air, -self.max)
-        elif keys[keymap['right']]:
+        elif self.keyRight:
             if self.dx < 0 and self.flagGround:
                 self.dx += self.dec
                 if 0 < self.dx < self.dec:
@@ -195,19 +216,17 @@ class Ball(object):
                     self.dx = min(self.dx + self.acc, self.max)
                 else:
                     self.dx = min(self.dx + self.air, self.max)
-        elif not keys[keymap['right']] and not keys[keymap['left']] and self.flagGround:
+        elif not self.keyLeft and not self.keyRight and self.flagGround:
             self.dx -= min(abs(self.dx), self.frc) * cmp(self.dx,0)
 
-        # Quickly stop downward velocity for debug
-        if keys[key.H]:
-            self.dy = 0
+        #Jumping
         if self.flagJumpNextFrame:
             play_sound('jump')
             self.dy = self.jmp
             self.flagGround = False
             self.flagAllowJump = False
             self.flagJumpNextFrame = False
-        if keys[keymap['jump']] and self.flagGround and self.flagAllowJump:
+        if self.keyJump and self.flagGround and self.flagAllowJump:
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
@@ -269,7 +288,7 @@ class Ball(object):
         self.sprite.y = int(self.y)
 
     def update(self, dt):
-        if self.flagGround and not keys[key.Z]:
+        if self.flagGround and not self.keyJump:
             self.flagAllowJump = True
         self.handle_input()
         self.perform_speed_movement(dt)
@@ -317,8 +336,30 @@ def on_key_press(symbol, modifiers):
 keys = key.KeyStateHandler()
 window.push_handlers(keys)
 
+def handle_input():
+    # Pack data into a single variable.
+    keydata = 0
+    keydata = keydata | (keys[keymap['up']]    * 0b1)
+    keydata = keydata | (keys[keymap['down']]  * 0b10)
+    keydata = keydata | (keys[keymap['left']]  * 0b100)
+    keydata = keydata | (keys[keymap['right']] * 0b1000)
+    keydata = keydata | (keys[keymap['jump']]  * 0b10000)
+    
+    return keydata
+
 def update(dt):
+    keydata = handle_input()
+    myball.unpack_input(keydata)
     myball.update(dt)
+
+    # This code will come in handy for 1.5-player games.
+    keydata_delayed = input_queue.pop(0)
+    input_queue.append(keydata)
+    # The value in keydata_delayed can now be sent to a second player
+    if Player2:
+        Player2.unpack_input(keydata_delayed)
+        Player2.update(dt)
+
     mybg.update(dt)
     
     if window.has_exit:
