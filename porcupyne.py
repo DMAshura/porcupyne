@@ -69,7 +69,15 @@ keymap = {'up':    key.UP,
           'down':  key.DOWN,
           'left':  key.LEFT,
           'right': key.RIGHT,
-          'jump':  key.Z}
+          'jump':  key.Z,
+          'size1': key.NUM_1,
+          'size2': key.NUM_2,
+          'size3': key.NUM_3,
+          'size4': key.NUM_4,
+          'size5': key.NUM_5,
+          'size6': key.NUM_6}
+inv_keymap = dict((key,symbol) for symbol, key in keymap.iteritems())
+
 
 INPUT_DELAY = 10
 
@@ -169,11 +177,6 @@ class Ball(object):
         self.keyRight = False
         self.keyJump = False
 
-        window.push_handlers(on_key_release = self.key_released)
-
-    def key_released(self, symbol, modifiers):
-        if symbol == key.Z:
-            self.release_jump()
 
     def release_jump(self):
         self.dy = min(self.dy, self.jmpweak)
@@ -186,13 +189,6 @@ class Ball(object):
         self.sprite.x = int(x)
         self.sprite.y = int(y)
         self.update_sensors()
-
-    def unpack_input(self, keydata):
-        self.keyUp    = bool(keydata & 0b1)
-        self.keyDown  = bool(keydata & 0b10)
-        self.keyLeft  = bool(keydata & 0b100)
-        self.keyRight = bool(keydata & 0b1000)
-        self.keyJump  = bool(keydata & 0b10000)
 
     def handle_input(self):
         # Speed input and management
@@ -298,6 +294,32 @@ class Ball(object):
     def draw(self):
         self.sprite.render()
 
+    def key_press(self, message):
+        if message == 'up':
+            self.keyUp = True
+        elif message == 'down':
+            self.keyDown = True
+        elif message == 'left':
+            self.keyLeft = True
+        elif message == 'right':
+            self.keyRight = True
+        elif message == 'jump':
+            self.keyJump = True
+
+    def key_release(self, message):
+        if message == 'up':
+            self.keyUp = False
+        elif message == 'down':
+            self.keyDown = False
+        elif message == 'left':
+            self.keyLeft = False
+        elif message == 'right':
+            self.keyRight = False
+        elif message == 'jump':
+            self.keyJump = False
+            self.release_jump()
+        
+
 class BG(pyglet.sprite.Sprite):
     bg_image = resource.image(BG_IMAGE)
     center_image(bg_image)
@@ -313,52 +335,42 @@ class BG(pyglet.sprite.Sprite):
     def update(self, dt):
         self.x += self.dx * dt
 
-@window.event
-def on_key_press(symbol, modifiers):
-    global GRAVITY
-    if symbol == key.ESCAPE:
-        window_has_exit = True
-    elif symbol == key.NUM_1:
-        window.set_size(320, 240)
-    elif symbol == key.NUM_2:
-        window.set_size(640, 480)
-    elif symbol == key.NUM_3:
-        window.set_size(960, 720)
-    elif symbol == key.NUM_4:
-        window.set_size(427, 240)
-    elif symbol == key.NUM_5:
-        window.set_size(854, 480)
-    elif symbol == key.NUM_6:
-        window.set_size(1280, 720)
-    elif symbol == key.F:
-        myball.set_position(300, 300)
 
-keys = key.KeyStateHandler()
-window.push_handlers(keys)
+class Controller:
+    def __init__(self):
+        window.push_handlers(on_key_press = self.handle_key_press)
+        window.push_handlers(on_key_release = self.handle_key_release)
 
-def handle_input():
-    # Pack data into a single variable.
-    keydata = 0
-    keydata = keydata | (keys[keymap['up']]    * 0b1)
-    keydata = keydata | (keys[keymap['down']]  * 0b10)
-    keydata = keydata | (keys[keymap['left']]  * 0b100)
-    keydata = keydata | (keys[keymap['right']] * 0b1000)
-    keydata = keydata | (keys[keymap['jump']]  * 0b10000)
-    
-    return keydata
+    def handle_key_press(self, symbol, modifiers):
+        if not symbol in inv_keymap:
+            return
+        message = inv_keymap[symbol]
+        myball.key_press(message)
+        # player2.key_press(message)
+
+    def handle_key_release(self, symbol, modifiers):
+        if not symbol in inv_keymap:
+            return
+        message = inv_keymap[symbol]
+        myball.key_release(message)
+        # player2.key_release(message)
+        #resize code        
+        if message == 'size1':
+            window.set_size(320, 240)
+        elif message == 'size2':
+            window.set_size(640, 480)
+        elif message == 'size3':
+            window.set_size(960, 720)
+        elif message == 'size4':
+            window.set_size(427, 240)
+        elif message == 'size5':
+            window.set_size(854, 480)
+        elif message == 'size6':
+            window.set_size(1280, 720)
+
 
 def update(dt):
-    keydata = handle_input()
-    myball.unpack_input(keydata)
     myball.update(dt)
-
-    # This code will come in handy for 1.5-player games.
-    keydata_delayed = input_queue.pop(0)
-    input_queue.append(keydata)
-    # The value in keydata_delayed can now be sent to a second player
-    if Player2:
-        Player2.unpack_input(keydata_delayed)
-        Player2.update(dt)
 
     mybg.update(dt)
     
@@ -423,6 +435,7 @@ platforms = [
     Platform(0, -128),
     Platform(128, 0)
 ]
+mycontroller = Controller()
 
 import pyglet.font
 fps_display = pyglet.font.Text(pyglet.font.load('', 36, bold = True), '', 
