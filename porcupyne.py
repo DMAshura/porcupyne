@@ -28,7 +28,7 @@
 # This engine requires pyglet.  You can get it at www.pyglet.org.
 #
 # Special Thanks:
-#   Al Murray (r0guey0shi) and Héctor Barreiro (Damizean)
+#   Al Murray (r0guey0shi) and Héctor Barreiro Cabrera (Damizean)
 #     for their work on the Sonic Worlds and Sonic Dash engines
 #     from which this code is partially ported.
 #   Mercury at Sonic Retro (www.sonicretro.org)
