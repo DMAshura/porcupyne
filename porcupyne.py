@@ -61,6 +61,8 @@ BALL_IMAGE = 'BlueBall.png'
 SENSOR_IMAGE = 'Sensor.png'
 PLATFORM_IMAGE = 'Platform.png'
 
+DRAW_SENSORS = True
+
 SLOPE_TEST = 4 # allow 4 pixels
 
 # Define key mappings here so we can change them if necessary,
@@ -70,6 +72,7 @@ keymap = {'up':    key.UP,
           'left':  key.LEFT,
           'right': key.RIGHT,
           'jump':  key.Z,
+          'reset': key.F,
           'size1': key.NUM_1,
           'size2': key.NUM_2,
           'size3': key.NUM_3,
@@ -147,7 +150,15 @@ class Ball(object):
         # Sensors
 
         self.sensor_bottom = Sensor()
-        self.sensors = [self.sensor_bottom]
+        self.sensor_top = Sensor()
+        self.sensor_left = Sensor()
+        self.sensor_right = Sensor()
+        self.sensor_ground = Sensor()
+        self.sensors = [self.sensor_bottom,
+                        self.sensor_top,
+                        self.sensor_left,
+                        self.sensor_right,
+                        self.sensor_ground]
 
         # Values according to the Sonic Physics Guide
         self.acc = 0.046875 * SCALE
@@ -226,8 +237,35 @@ class Ball(object):
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
+        self.sensor_top.x = int(self.x)
+        self.sensor_top.y = int(self.y) + self.height/2.0 - self.sensor_bottom.height/2.0
+
         self.sensor_bottom.x = int(self.x)
-        self.sensor_bottom.y = int(self.y) - self.width/2.0 + self.sensor_bottom.width/2.0
+        self.sensor_bottom.y = int(self.y) - self.height/2.0 + self.sensor_bottom.height/2.0
+
+        self.sensor_left.x = int(self.x) - self.width/2.0 + self.sensor_left.width/2.0
+        self.sensor_left.y = int(self.y)
+
+        self.sensor_right.x = int(self.x) + self.width/2.0 - self.sensor_left.width/2.0
+        self.sensor_right.y = int(self.y)
+
+        self.sensor_ground.x = int(self.x)
+        self.sensor_ground.y = int(self.y) - self.height/2.0 - self.sensor_bottom.height/2.0
+
+    def collision_top(self, other):
+        return collide(self.sensor_top.collision, other.collision)
+
+    def collision_bottom(self, other):
+        return collide(self.sensor_bottom.collision, other.collision)
+
+    def collision_left(self, other):
+        return collide(self.sensor_left.collision, other.collision)
+
+    def collision_right(self, other):
+        return collide(self.sensor_right.collision, other.collision)
+
+    def collision_ground(self, other):
+        return collide(self.sensor_ground.collision, other.collision)
 
     def perform_speed_movement(self, dt):
         collided = False
@@ -235,26 +273,23 @@ class Ball(object):
             self.x += self.dx/FAILSAFE_AMOUNT * dt
             self.update_sensors()
             for platform in platforms:
-                startY = self.y
-                if collide(self.sensor_bottom.collision, platform.collision):
+                if self.collision_bottom(platform):
                     # first, try see if it's a small slope
                     for _ in xrange(SLOPE_TEST):
                         self.y += 1
                         self.update_sensors()
-                        if not collide(self.sensor_bottom.collision, 
-                                       platform.collision):
+                        if not self.collision_bottom(platform):
                             break
-                    else:
-                        self.y = startY
+                if self.collision_left(platform) or self.collision_right(platform):
+                    self.update_sensors()
+                    while self.collision_left(platform):
+                        collided = True
+                        self.x += 1
                         self.update_sensors()
-                        while collide(self.sensor_bottom.collision, 
-                                      platform.collision):
-                            collided = True
-                            if self.dx > 0:
-                                self.x -= 1
-                            else:
-                                self.x += 1
-                            self.update_sensors()
+                    while self.collision_right(platform):
+                        collided = True
+                        self.x -= 1
+                        self.update_sensors()
             if collided:
                 self.dx = 0
                 break
@@ -269,7 +304,14 @@ class Ball(object):
             self.y += (self.dy/FAILSAFE_AMOUNT) * dt
             self.update_sensors()
             for platform in platforms:
-                while collide(self.sensor_bottom.collision, platform.collision):
+                while self.collision_bottom(platform):
+                    collided = True
+                    if self.dy > 0:
+                        self.y -= 1
+                    else:
+                        self.y += 1
+                    self.update_sensors()
+                while self.collision_top(platform):
                     collided = True
                     if self.dy > 0:
                         self.y -= 1
@@ -283,12 +325,19 @@ class Ball(object):
         
         self.sprite.y = int(self.y)
 
+    def perform_ground_test(self):
+        for platform in platforms:
+            if self.collision_ground(platform):
+                return True
+        self.flagGround = False
+        return False
+
     def update(self, dt):
         if self.flagGround and not self.keyJump:
             self.flagAllowJump = True
         self.handle_input()
         self.perform_speed_movement(dt)
-        if not self.flagGround:
+        if not self.flagGround or not self.perform_ground_test():
             self.perform_gravity_movement(dt)
     
     def draw(self):
@@ -305,6 +354,10 @@ class Ball(object):
             self.keyRight = True
         elif message == 'jump':
             self.keyJump = True
+        elif message == 'reset':
+            self.set_position(100,95)
+            self.dx = 0
+            self.dy = 0
 
     def key_release(self, message):
         if message == 'up':
@@ -410,24 +463,32 @@ def on_draw(dt):
     glMatrixMode(gl.GL_MODELVIEW)
     glLoadIdentity()
 
-    # I can eventually use this to change the camera. 
-    #glTranslatef(window.width/window.scale/2, window.height/window.scale/2, 0.0)
+    # Draw stuff in the level.
     glPushMatrix()
     glTranslatef(int(-myball.x), int(-myball.y), 0.0)
+
     mybg.draw()
-    myball.draw()
-    for sensor in myball.sensors:
-        sensor.draw()
+
     for platform in platforms:
         platform.draw()
+
+    myball.draw()
+    if DRAW_SENSORS:
+        for sensor in myball.sensors:
+            sensor.draw()
     
     glPopMatrix()
 
-    fps_display.text = '%d' % (1 / dt)
+    # Draw HUD.
+    fps_display.text = 'FPS: %d' % (1 / dt)
     fps_display.draw()
 
-    debug_text.text = str(myball.flagGround)
-    debug_text.draw()
+    debug_text_1.text = str(myball.flagGround)
+    debug_text_2.text = '0'
+    debug_text_3.text = '0'
+    debug_text_1.draw()
+    debug_text_2.draw()
+    debug_text_3.draw()
 
 myball = Ball()
 mybg = BG()
@@ -438,11 +499,14 @@ platforms = [
 mycontroller = Controller()
 
 import pyglet.font
-fps_display = pyglet.font.Text(pyglet.font.load('', 36, bold = True), '', 
-    color=(0.5, 0.5, 0.5, 0.5), x = 10, y = 10)
+
+fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
+    color=(0.5, 0.5, 0.5, 0.5), x=-300, y=-200)
 
 ft = font.load('Arial', 20)
-debug_text = font.Text(ft, y=-200)
+debug_text_1 = font.Text(ft, x=200, y=200)
+debug_text_2 = font.Text(ft, x=200, y=170)
+debug_text_3 = font.Text(ft, x=200, y=140)
 
 pyglet.clock.schedule_interval(update, 1 / 60.0)
 pyglet.app.run()
