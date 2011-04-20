@@ -66,7 +66,7 @@ import resources
 # This will be in a separate module's root namespace, but for now it is just it's own class
 # This way, very little code will have to be changed when this changes
 # Does not include keymap... this seems like it should go in the Controller file instead
-class const:
+class const(object):
     GAMEDATA_PATH = 'gamedata'
     # Game engine constants
     GAME_WIDTH = 640
@@ -129,8 +129,7 @@ def sin(x):
 def cos(x):
     return math.cos(math.radians(x))
 
-
-class Game:
+class Game(object):
     def __init__(self):
         self.window = pyglet.window.Window(width = const.GAME_WIDTH, height = const.GAME_HEIGHT, vsync = False, caption = "Porcupyne",resizable = True)
         self.window.invalid = False
@@ -163,8 +162,8 @@ class Game:
 
         self.bg.update(dt)
         
-        #if window.has_exit:
-        #    return
+        if self.window.has_exit:
+           return
         self.window.switch_to()
         self.on_draw(dt)
         self.window.flip()
@@ -228,31 +227,19 @@ class Game:
 
 class Sensor(pyglet.sprite.Sprite):
     def __init__(self, res):
-        x = 0
-        y = 0
-        
         sensor_image = res.image_dict[const.SENSOR_IMAGE]
-        print sensor_image.width
+        super(Sensor, self).__init__(sensor_image, 0, 0)
         center_image(sensor_image)
-        self.width = sensor_image.width
-        self.height = sensor_image.height
-        
-        super(Sensor, self).__init__(self.sensor_image, x, y)
-        self.collision= SpriteCollision(self)
+        self.collision = SpriteCollision(self)
 
     def collide(self, other):
         return collide(self.collision, other.collision)
 
 class Platform(pyglet.sprite.Sprite):
-    
     def __init__(self, x, y, res):
         self.platform_image = res.image_dict[const.PLATFORM_IMAGE]
         center_image(self.platform_image)
-        self.width = self.platform_image.width
-        self.height = self.platform_image.height
-
         super(Platform, self).__init__(self.platform_image, x, y)
-
         self.collision = SpriteCollision(self)
 
 class Ball(object):
@@ -510,20 +497,14 @@ class Ball(object):
         
 
 class BG(pyglet.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, res):
         self.bg_image = res.image_dict[const.BG_IMAGE]
-        self.center_image(self.bg_image)
-        self.width = self.bg_image.width
-        self.height = self.bg_image.height
-        
-        x = 0
-        y = 0
-        super(BG, self).__init__(self.bg_image, x, y)
+        center_image(self.bg_image)
+        super(BG, self).__init__(self.bg_image, 0, 0)
         self.dx = 0
 
     def update(self, dt):
         self.x += self.dx * dt
-
 
 class Controller:
     def __init__(self, window, player):
