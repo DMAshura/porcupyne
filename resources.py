@@ -1,4 +1,4 @@
-from pyglet import (resource, media)
+from pyglet import resource, media, image
 import os
 import string
 
@@ -48,7 +48,8 @@ class Resource:
 
     def load_file(self, name, ext, path):
         if ext in self.image_filetypes:
-            self.image_dict[name + ext] = resource.image(name + ext)
+            self.image_dict[name + ext] = image.load(os.path.join(path, 
+                '%s%s' % (name, ext))).get_texture()
             print "Image '%s' loaded!" % (name + ext)
         if ext in self.sound_filetypes:
             self.sound_dict[name + ext] = media.load(path + os.sep + name + ext,

@@ -57,9 +57,11 @@ import pyglet.font
 from pyglet.gl import (glLoadIdentity, glTranslatef, glLoadIdentity,
     glPushMatrix, glPopMatrix, glViewport, glMatrixMode, glOrtho)
 
-from collide import *
+from collision import Collision, collide_python as collide
 
-from rabbyt.sprites import Sprite
+import rabbyt
+
+from sprite import Sprite
 
 import resources
 
@@ -157,11 +159,12 @@ class Game(object):
         self.debug_text = [font.Text(ft, x=200, y=200),
                       font.Text(ft, x=200, y=170),
                       font.Text(ft, x=200, y=140)]
-
+        
+        # alpha channels¨
+        rabbyt.set_default_attribs()
 
     def update(self, dt):
         self.player1.update(dt)
-
         self.bg.update(dt)
         
         if self.window.has_exit:
@@ -207,12 +210,12 @@ class Game(object):
         self.bg.draw()
 
         for platform in self.platforms:
-            platform.draw()
+            platform.render()
 
         self.player1.draw()
         if const.DRAW_SENSORS:
             for sensor in self.player1.sensors:
-                sensor.draw()
+                sensor.render()
         
         glPopMatrix()
 
@@ -227,22 +230,22 @@ class Game(object):
         self.debug_text[1].draw()
         self.debug_text[2].draw()
 
-class Sensor(pyglet.sprite.Sprite):
+class Sensor(Sprite):
     def __init__(self, res):
         sensor_image = res.image_dict[const.SENSOR_IMAGE]
-        super(Sensor, self).__init__(sensor_image, 0, 0)
         center_image(sensor_image)
-        self.collision = SpriteCollision(self)
+        super(Sensor, self).__init__(sensor_image, x = 0, y = 0)
+        self.collision = Collision(self)
 
     def collide(self, other):
         return collide(self.collision, other.collision)
 
-class Platform(pyglet.sprite.Sprite):
+class Platform(Sprite):
     def __init__(self, x, y, res):
-        self.platform_image = res.image_dict[const.PLATFORM_IMAGE]
-        center_image(self.platform_image)
-        super(Platform, self).__init__(self.platform_image, x, y)
-        self.collision = SpriteCollision(self)
+        platform_image = res.image_dict[const.PLATFORM_IMAGE]
+        center_image(platform_image)
+        super(Platform, self).__init__(platform_image, x = x, y = y)
+        self.collision = Collision(self)
 
 class Ball(object):
     def __init__(self, game, res):
@@ -250,7 +253,6 @@ class Ball(object):
         center_image(self.ball_image)
         self.width = self.ball_image.width
         self.height = self.ball_image.height
-        self.sprite = None
     
         self.game = game
         self.res = res
@@ -558,7 +560,7 @@ class Controller:
 
 # Temporary code to get the commit functional, this MUST BE CHANGED SOON!
 if __name__ == "__main__":
-    game = Game();
+    game = Game()
 
     pyglet.clock.schedule_interval(game.update, 1 / 60.0)
     pyglet.app.run()
