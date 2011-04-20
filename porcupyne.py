@@ -131,7 +131,9 @@ def cos(x):
 
 class Game(object):
     def __init__(self):
-        self.window = pyglet.window.Window(width = const.GAME_WIDTH, height = const.GAME_HEIGHT, vsync = False, caption = "Porcupyne",resizable = True)
+        self.window = pyglet.window.Window(width = const.GAME_WIDTH, 
+            height = const.GAME_HEIGHT, vsync = False, caption = "Porcupyne", 
+            resizable = True)
         self.window.invalid = False
 
         # resource.path = ['.']
@@ -356,20 +358,30 @@ class Ball(object):
             self.flagJumpNextFrame = True
 
     def update_sensors(self):
-        self.sensor_top.x = int(self.x) - sin(self.angle) * (self.height/2.0 - self.sensor_bottom.height/2.0)
-        self.sensor_top.y = int(self.y) + cos(self.angle) * (self.height/2.0 - self.sensor_bottom.height/2.0)
+        self.sensor_top.x = int(self.x) - sin(self.angle) * (
+            self.height/2.0 - self.sensor_bottom.height/2.0)
+        self.sensor_top.y = int(self.y) + cos(self.angle) * (
+            self.height/2.0 - self.sensor_bottom.height/2.0)
 
-        self.sensor_bottom.x = int(self.x) + sin(self.angle) * (self.height/2.0 - self.sensor_top.height/2.0)
-        self.sensor_bottom.y = int(self.y) - cos(self.angle) * (self.height/2.0 - self.sensor_top.height/2.0)
+        self.sensor_bottom.x = int(self.x) + sin(self.angle) * (
+            self.height/2.0 - self.sensor_top.height/2.0)
+        self.sensor_bottom.y = int(self.y) - cos(self.angle) * (
+            self.height/2.0 - self.sensor_top.height/2.0)
 
-        self.sensor_left.x = int(self.x) - cos(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
-        self.sensor_left.y = int(self.y) - sin(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
+        self.sensor_left.x = int(self.x) - cos(self.angle) * (
+            self.width/2.0 - self.sensor_left.width/2.0)
+        self.sensor_left.y = int(self.y) - sin(self.angle) * (
+            self.width/2.0 - self.sensor_left.width/2.0)
 
-        self.sensor_right.x = int(self.x) + cos(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
-        self.sensor_right.y = int(self.y) + sin(self.angle) * (self.width/2.0 - self.sensor_left.width/2.0)
+        self.sensor_right.x = int(self.x) + cos(self.angle) * (
+            self.width/2.0 - self.sensor_left.width/2.0)
+        self.sensor_right.y = int(self.y) + sin(self.angle) * (
+            self.width/2.0 - self.sensor_left.width/2.0)
 
-        self.sensor_ground.x = int(self.x) + sin(self.angle) * (self.height/2.0 + self.sensor_ground.height/2.0)
-        self.sensor_ground.y = int(self.y) - cos(self.angle) * (self.height/2.0 + self.sensor_ground.height/2.0)
+        self.sensor_ground.x = int(self.x) + sin(self.angle) * (
+            self.height/2.0 + self.sensor_ground.height/2.0)
+        self.sensor_ground.y = int(self.y) - cos(self.angle) * (
+            self.height/2.0 + self.sensor_ground.height/2.0)
 
     def perform_speed_movement(self, dt):
         collided = False
@@ -387,7 +399,8 @@ class Ball(object):
                         if not self.sensor_bottom.collide(platform):
                             break
                 '''
-                if self.sensor_left.collide(platform) or self.sensor_right.collide(platform):
+                if (self.sensor_left.collide(platform) or 
+                self.sensor_right.collide(platform)):
                     self.update_sensors()
                     while self.sensor_left.collide(platform):
                         collided = True
