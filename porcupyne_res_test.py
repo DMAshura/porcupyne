@@ -347,7 +347,7 @@ class Ball(object):
 
         #Jumping
         if self.flagJumpNextFrame:
-            play_sound('jump')
+            self.res.sound_dict['jump.wav'].play()
             self.dv = self.jmp
             self.flagGround = False
             self.flagAllowJump = False
