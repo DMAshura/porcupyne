@@ -554,7 +554,7 @@ class Ball(object):
                     self.flagGround = True
                 self.dv = 0
                 break
-        
+        self.sprite.x = int(self.x)
         self.sprite.y = int(self.y)
 
     def perform_ground_test(self):
