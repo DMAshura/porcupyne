@@ -140,6 +140,15 @@ def atan2(y,x):
 def direction(obj1, obj2):
     return atan2(obj2.y - obj1.y, obj2.x - obj1.x)
 
+def rotate_basis(dh1, dv1, gangle1, gangle2):
+    dx = dh1 * cos(gangle1) - dv1 * sin(gangle1)
+    dy = dh1 * sin(gangle1) + dv1 * cos(gangle1)
+
+    dh2 = dx * cos(gangle2) + dy * sin(gangle2)
+    dv2 = -dx * sin(gangle2) + dy * cos(gangle2)
+
+    return (dh2, dv2)
+
 class Game(object):
     def __init__(self):
         self.window = pyglet.window.Window(width = const.GAME_WIDTH, 
@@ -386,15 +395,18 @@ class Ball(object):
         if self.flagJumpNextFrame:
             self.res.sound_dict['jump.wav'].play()
             self.dv = self.jmp
-            dv = self.dv
-            self.dh = -dv * sin(self.angle)
-            self.dv = dv * cos(self.angle)
-            self.angle = self.gangle
+            self.set_gravity(self.gangle)
             self.flagGround = False
             self.flagAllowJump = False
             self.flagJumpNextFrame = False
         if self.keyJump and self.flagGround and self.flagAllowJump:
             self.flagJumpNextFrame = True
+
+    def set_gravity(self, gangle):
+        _ = rotate_basis(self.dh, self.dv, self.angle, gangle)
+        self.dh = _[0]
+        self.dv = _[1]
+        self.angle = self.gangle = gangle
 
     def update_sensors(self):
         self.sensor_top.x = int(self.x) - sin(self.angle) * (
@@ -600,20 +612,15 @@ class Ball(object):
             self.set_position(100,96)
             self.dv = 0
             self.dh = 0
-            self.angle = 0.0
-            self.gangle = 0.0
+            self.set_gravity(0.0)
         elif message == 'gdown':
-            self.gangle = 0.0
-            self.angle = self.gangle
+            self.set_gravity(0.0)
         elif message == 'gright':
-            self.gangle = 90.0
-            self.angle = self.gangle
+            self.set_gravity(90.0)
         elif message == 'gup':
-            self.gangle = 180.0
-            self.angle = self.gangle
+            self.set_gravity(180.0)
         elif message == 'gleft':
-            self.gangle = 270.0
-            self.angle = self.gangle
+            self.set_gravity(270.0)
 
     def key_release(self, message):
         if message == 'up':
