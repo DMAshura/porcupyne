@@ -86,6 +86,9 @@ class const(object):
 
     SLOPE_TEST = 4 # allow 4 pixels
 
+    ANGLE_STEPS = 25
+    ANGLE_SENSOR_SCALE = 3
+
 '''
 #Load resources
 resource.path.append(const.GAMEDATA_PATH)
@@ -131,6 +134,12 @@ def sin(x):
 def cos(x):
     return math.cos(math.radians(x))
 
+def atan2(y,x):
+    return math.degrees(math.atan2(y,x))
+
+def direction(obj1, obj2):
+    return atan2(obj2.y - obj1.y, obj2.x - obj1.x)
+
 class Game(object):
     def __init__(self):
         self.window = pyglet.window.Window(width = const.GAME_WIDTH, 
@@ -149,7 +158,8 @@ class Game(object):
             Platform(0, -128, res),
             Platform(128, 0, res),
             Platform(-270, -50, res),
-            Platform(-320, 150, res)
+            Platform(-320, 150, res),
+            SlantPlatform(328, 96, res)
         ]
         self.controller = Controller(self.window, self.player1)
         self.fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
@@ -224,7 +234,7 @@ class Game(object):
         self.fps_display.draw()
 
         self.debug_text[0].text = str(self.player1.flagGround)
-        self.debug_text[1].text = '0'
+        self.debug_text[1].text = str(self.player1.angle)
         self.debug_text[2].text = '0'
         self.debug_text[0].draw()
         self.debug_text[1].draw()
@@ -240,11 +250,28 @@ class Sensor(Sprite):
     def collide(self, other):
         return collide(self.collision, other.collision)
 
+class TinySensor(Sprite):
+    def __init__(self, res):
+        image = res.image_dict['TinySensor.png']
+        center_image(image)
+        super(TinySensor, self).__init__(image, x = 0, y = 0)
+        self.collision = Collision(self)
+
+    def collide(self, other):
+        return collide(self.collision, other.collision)
+
 class Platform(Sprite):
     def __init__(self, x, y, res):
         platform_image = res.image_dict[const.PLATFORM_IMAGE]
         center_image(platform_image)
         super(Platform, self).__init__(platform_image, x = x, y = y)
+        self.collision = Collision(self)
+
+class SlantPlatform(Sprite):
+    def __init__(self, x, y, res):
+        platform_image = res.image_dict['SlantPlatform.png']
+        center_image(platform_image)
+        super(SlantPlatform, self).__init__(platform_image, x = x, y = y)
         self.collision = Collision(self)
 
 class Ball(object):
@@ -268,11 +295,17 @@ class Ball(object):
         self.sensor_left = Sensor(self.res)
         self.sensor_right = Sensor(self.res)
         self.sensor_ground = Sensor(self.res)
+        self.sensor_left_ground = TinySensor(self.res)
+        self.sensor_middle_ground = TinySensor(self.res)
+        self.sensor_right_ground = TinySensor(self.res)
         self.sensors = [self.sensor_bottom,
                         self.sensor_top,
                         self.sensor_left,
                         self.sensor_right,
-                        self.sensor_ground]
+                        self.sensor_ground,
+                        self.sensor_left_ground,
+                        self.sensor_middle_ground,
+                        self.sensor_right_ground]
 
         # Values according to the Sonic Physics Guide
         
@@ -296,8 +329,8 @@ class Ball(object):
 
         # Trig
 
-        self.angle = 0
-        self.gangle = 0
+        self.angle = 0.0
+        self.gangle = 0.0
 
         # Movement (dh = horizontal, dv = vertical.)
         # These can be rotated using angle and gangle above.
@@ -353,6 +386,10 @@ class Ball(object):
         if self.flagJumpNextFrame:
             self.res.sound_dict['jump.wav'].play()
             self.dv = self.jmp
+            dv = self.dv
+            self.dh = -dv * sin(self.angle)
+            self.dv = dv * cos(self.angle)
+            self.angle = self.gangle
             self.flagGround = False
             self.flagAllowJump = False
             self.flagJumpNextFrame = False
@@ -384,6 +421,70 @@ class Ball(object):
             self.height/2.0 + self.sensor_ground.height/2.0)
         self.sensor_ground.y = int(self.y) - cos(self.angle) * (
             self.height/2.0 + self.sensor_ground.height/2.0)
+
+    def calculate_angle(self):
+        slg = self.sensor_left_ground
+        smg = self.sensor_middle_ground
+        srg = self.sensor_right_ground
+
+        # When this is called, the sensors should be visible.
+        '''
+        self.sensor_left_ground.visible = True
+        self.sensor_middle_ground.visible = True
+        self.sensor_right_ground.visible = True
+        '''
+        
+        slg.x = int(self.x) - cos(self.angle) * (
+            7*const.ANGLE_SENSOR_SCALE - slg.width/2.0)
+        slg.y = int(self.y) - sin(self.angle) * (
+            7*const.ANGLE_SENSOR_SCALE - slg.width/2.0)
+
+        smg.x = int(self.x)
+        smg.y = int(self.y)
+
+        srg.x = int(self.x) + cos(self.angle) * (
+            7*const.ANGLE_SENSOR_SCALE - srg.width/2.0)
+        srg.y = int(self.y) + sin(self.angle) * (
+            7*const.ANGLE_SENSOR_SCALE - srg.width/2.0)
+
+        left_collide = False
+        middle_collide = False
+        right_collide = False
+
+        for _ in range(1, const.ANGLE_STEPS * const.ANGLE_SENSOR_SCALE):
+            for platform in self.game.platforms:
+                if slg.collide(platform):
+                    left_collide = True
+                if smg.collide(platform):
+                    middle_collide = True
+                if srg.collide(platform):
+                    right_collide = True
+            if not left_collide:
+                slg.x += sin(self.angle)
+                slg.y -= cos(self.angle)
+            if not middle_collide:
+                smg.x += sin(self.angle)
+                smg.y -= cos(self.angle)
+            if not right_collide:
+                srg.x += sin(self.angle)
+                srg.y -= cos(self.angle)
+
+        if left_collide and right_collide:
+            return direction(slg, srg)
+        else:
+            if left_collide:
+                if middle_collide:
+                    return direction(slg, smg)
+                else:
+                    return self.angle
+            elif right_collide:
+                if middle_collide:
+                    return direction(smg, srg)
+                else:
+                    return self.angle
+            else:
+                return self.gangle
+        
 
     def perform_speed_movement(self, dt):
         collided = False
@@ -463,12 +564,22 @@ class Ball(object):
         return False
 
     def update(self, dt):
-        if self.flagGround and not self.keyJump:
-            self.flagAllowJump = True
+        if self.flagGround:
+            if not self.keyJump:
+                self.flagAllowJump = True
+        else:
+            # I'd like to have the sensors be invisible when not on the ground.
+            '''
+            self.sensor_left_ground.visible = False
+            self.sensor_middle_ground.visible = False
+            self.sensor_right_ground.visible = False
+            '''
         self.handle_input()
         self.perform_speed_movement(dt)
         if not self.flagGround or not self.perform_ground_test():
             self.perform_gravity_movement(dt)
+        if self.flagGround:
+            self.angle = self.calculate_angle()
     
     def draw(self):
         self.sprite.render()
@@ -485,17 +596,23 @@ class Ball(object):
         elif message == 'jump':
             self.keyJump = True
         elif message == 'reset':
-            self.set_position(100,95)
+            self.set_position(100,96)
             self.dv = 0
             self.dh = 0
+            self.angle = 0.0
+            self.gangle = 0.0
         elif message == 'gdown':
-            self.angle = 0
+            self.gangle = 0.0
+            self.angle = self.gangle
         elif message == 'gright':
-            self.angle = 90
+            self.gangle = 90.0
+            self.angle = self.gangle
         elif message == 'gup':
-            self.angle = 180
+            self.gangle = 180.0
+            self.angle = self.gangle
         elif message == 'gleft':
-            self.angle = 270
+            self.gangle = 270.0
+            self.angle = self.gangle
 
     def key_release(self, message):
         if message == 'up':
