@@ -113,7 +113,8 @@ keymap = {'up':    key.UP,
           'gup':   key.W,
           'gdown': key.S,
           'gleft': key.A,
-          'gright':key.D}
+          'gright':key.D,
+          'hlock': key.L}
 inv_keymap = dict((key,symbol) for symbol, key in keymap.iteritems())
 
 # Utility functions
@@ -135,7 +136,7 @@ def cos(x):
     return math.cos(math.radians(x))
 
 def atan2(y,x):
-    return math.degrees(math.atan2(y,x))
+    return math.degrees(math.atan2(y,x)) % 360
 
 def direction(obj1, obj2):
     return atan2(obj2.y - obj1.y, obj2.x - obj1.x)
@@ -242,9 +243,9 @@ class Game(object):
         self.fps_display.text = 'FPS: %d' % (1 / dt)
         self.fps_display.draw()
 
-        self.debug_text[0].text = str(self.player1.flagGround)
-        self.debug_text[1].text = str(self.player1.angle)
-        self.debug_text[2].text = '0'
+        self.debug_text[0].text = str(int(self.player1.hlock))
+        self.debug_text[1].text = str(0)
+        self.debug_text[2].text = str(self.player1.rangle)
         self.debug_text[0].draw()
         self.debug_text[1].draw()
         self.debug_text[2].draw()
@@ -323,9 +324,15 @@ class Ball(object):
         self.dec = 0.5 * const.SCALE
         self.max = 6.0 * const.SCALE
 
+        self.slp = 0.125 * const.SCALE
+        self.ruslp = 0.078125 * const.SCALE
+        self.rdslp = 0.3125 * const.SCALE
+
         self.air = 0.09375 * const.SCALE
         self.grv = 0.21875 * const.SCALE
         self.maxg = 16.0 * const.SCALE
+
+        self.drg = 0.96875
 
         self.jmp = 6.5 * const.SCALE
         self.jmpweak = 4.0 * const.SCALE
@@ -334,12 +341,16 @@ class Ball(object):
 
         self.flagGround = False
         self.flagAllowJump = False
+        self.flagAllowHorizMovement = True
+        self.flagAllowVertMovement = True
         self.flagJumpNextFrame = False
+        self.flagFellOffWallOrCeiling = False
 
         # Trig
 
         self.angle = 0.0
         self.gangle = 0.0
+        self.rangle = 0.0
 
         # Movement (dh = horizontal, dv = vertical.)
         # These can be rotated using angle and gangle above.
@@ -352,6 +363,9 @@ class Ball(object):
         self.keyLeft = False
         self.keyRight = False
         self.keyJump = False
+
+        # Control lock timers
+        self.hlock = 0
 
 
     def release_jump(self):
@@ -366,30 +380,52 @@ class Ball(object):
         self.sprite.y = int(y)
         self.update_sensors()
 
-    def handle_input(self):
+    def handle_physics(self):
+        # Slope factor
+        '''if not self.Rolling:'''
+        if self.flagGround:
+            self.dh -= self.slp * sin(self.rangle)
+        '''
+        else:
+            if cmp(self.dh,0) == cmp(sin(self.rangle)):
+                self.dh -= self.ruslp * sin(self.rangle)
+            elif cmp(self.dh,0) == -cmp(sin(self.rangle)):
+                self.dh -= self.rdslp * sin(self.rangle)
+        '''
+
+        # Falling off walls and ceilings
+        if 45 < self.rangle < 315 and abs(self.dh) < 2.5 * const.SCALE:
+            self.set_gravity(self.gangle)
+            self.flagFellOffWallOrCeiling = True
+        
         # Speed input and management
-        if self.keyLeft:
-            if self.dh > 0 and self.flagGround:
-                self.dh -= self.dec
-                if -self.dec < self.dh < 0:
-                    self.dh = -self.dec
-            elif self.dh > -self.max:
-                if self.flagGround:
-                    self.dh = max(self.dh - self.acc, -self.max)
-                else:
-                    self.dh = max(self.dh - self.air, -self.max)
-        elif self.keyRight:
-            if self.dh < 0 and self.flagGround:
-                self.dh += self.dec
-                if 0 < self.dh < self.dec:
-                    self.dh = self.dec
-            elif self.dh < self.max:
-                if self.flagGround:
-                    self.dh = min(self.dh + self.acc, self.max)
-                else:
-                    self.dh = min(self.dh + self.air, self.max)
-        elif not self.keyLeft and not self.keyRight and self.flagGround:
-            self.dh -= min(abs(self.dh), self.frc) * cmp(self.dh,0)
+        if self.flagAllowHorizMovement:
+            if self.keyLeft:
+                if self.dh > 0 and self.flagGround:
+                    self.dh -= self.dec
+                    if -self.dec < self.dh < 0:
+                        self.dh = -self.dec
+                elif self.dh > -self.max:
+                    if self.flagGround:
+                        self.dh = max(self.dh - self.acc, -self.max)
+                    else:
+                        self.dh = max(self.dh - self.air, -self.max)
+            elif self.keyRight:
+                if self.dh < 0 and self.flagGround:
+                    self.dh += self.dec
+                    if 0 < self.dh < self.dec:
+                        self.dh = self.dec
+                elif self.dh < self.max:
+                    if self.flagGround:
+                        self.dh = min(self.dh + self.acc, self.max)
+                    else:
+                        self.dh = min(self.dh + self.air, self.max)
+            elif not self.keyLeft and not self.keyRight and self.flagGround:
+                self.dh -= min(abs(self.dh), self.frc) * cmp(self.dh,0)
+
+        #Air Drag
+        if 0 < self.dv < 4*const.SCALE and abs(self.dh) >= 0.125:
+            self.dh *= self.drg
 
         #Jumping
         if self.flagJumpNextFrame:
@@ -433,6 +469,9 @@ class Ball(object):
             self.height/2.0 + self.sensor_ground.height/2.0)
         self.sensor_ground.y = int(self.y) - cos(self.angle) * (
             self.height/2.0 + self.sensor_ground.height/2.0)
+
+    def calculate_rangle(self):
+        self.rangle = (self.angle - self.gangle) % 360
 
     def calculate_angle(self):
         slg = self.sensor_left_ground
@@ -486,16 +525,16 @@ class Ball(object):
         else:
             if left_collide:
                 if middle_collide:
-                    return direction(slg, smg)
+                    return direction(slg, smg) % 360
                 else:
-                    return self.angle
+                    return self.angle % 360
             elif right_collide:
                 if middle_collide:
                     return direction(smg, srg)
                 else:
-                    return self.angle
+                    return self.angle % 360
             else:
-                return self.gangle
+                return self.gangle % 360
         
 
     def perform_speed_movement(self, dt):
@@ -527,11 +566,15 @@ class Ball(object):
                         self.x -= cos(self.angle)
                         self.y -= sin(self.angle)
                         self.update_sensors()
+                while self.sensor_bottom.collide(platform):
+                    self.y += cos(self.angle)
+                    self.x -= sin(self.angle)
+                    self.update_sensors()
             if collided:
                 self.dx = 0
                 break
-        self.sprite.x = int(self.x)
-        self.sprite.y = int(self.y)
+        self.sprite.x = self.x = int(self.x)
+        self.sprite.y = self.y = int(self.y)
 
     def perform_gravity_movement(self, dt):
         self.dv = max(self.dv - self.grv, -self.maxg)
@@ -544,39 +587,38 @@ class Ball(object):
             self.update_sensors()
             for platform in self.game.platforms:
                 while self.sensor_bottom.collide(platform):
-                    collided = True
-                    if self.dv > 0:
-                        self.y -= cos(self.angle)
-                        self.x += sin(self.angle)
-                    else:
-                        self.y += cos(self.angle)
-                        self.x -= sin(self.angle)
+                    if self.dv < 0:
+                        collided = True
+                    self.y += cos(self.angle)
+                    self.x -= sin(self.angle)
                     self.update_sensors()
                 while self.sensor_top.collide(platform):
-                    collided = True
                     if self.dv > 0:
-                        self.y -= cos(self.angle)
-                        self.x += sin(self.angle)
-                    else:
-                        self.y += cos(self.angle)
-                        self.x -= sin(self.angle)
+                        collided = True
+                    self.y -= cos(self.angle)
+                    self.x += sin(self.angle)
                     self.update_sensors()
             if collided:
                 if self.dv < 0:
                     self.flagGround = True
+                    if self.flagFellOffWallOrCeiling:
+                        self.set_hlock(30)
+                        self.flagFellOffWallOrCeiling = False
                 self.dv = 0
                 break
-        self.sprite.x = int(self.x)
-        self.sprite.y = int(self.y)
+        self.sprite.x = self.x = int(self.x)
+        self.sprite.y = self.y = int(self.y)
 
     def perform_ground_test(self):
         for platform in self.game.platforms:
             if self.sensor_ground.collide(platform):
                 return True
         self.flagGround = False
+        self.set_gravity(self.gangle)
         return False
 
     def update(self, dt):
+        self.update_lock_timers(dt)
         if self.flagGround:
             if not self.keyJump:
                 self.flagAllowJump = True
@@ -587,12 +629,23 @@ class Ball(object):
             self.sensor_middle_ground.visible = False
             self.sensor_right_ground.visible = False
             '''
-        self.handle_input()
+        self.handle_physics()
         self.perform_speed_movement(dt)
         if not self.flagGround or not self.perform_ground_test():
             self.perform_gravity_movement(dt)
         if self.flagGround:
             self.angle = self.calculate_angle()
+            self.calculate_rangle()
+
+    def update_lock_timers(self, dt):
+        if self.hlock > 0:
+            self.hlock = max(self.hlock - 60 * dt, 0)
+        if self.hlock == 0:
+            self.flagAllowHorizMovement = True
+
+    def set_hlock(self, frames):
+        self.hlock = frames
+        self.flagAllowHorizMovement = False
     
     def draw(self):
         self.sprite.render()
@@ -621,6 +674,8 @@ class Ball(object):
             self.set_gravity(180.0)
         elif message == 'gleft':
             self.set_gravity(270.0)
+        elif message == 'hlock':
+            self.set_hlock(30)
 
     def key_release(self, message):
         if message == 'up':
