@@ -473,7 +473,9 @@ class Ball(object):
     def calculate_rangle(self):
         self.rangle = (self.angle - self.gangle) % 360
 
-    def calculate_angle(self):
+    def calculate_angle(self, angle=None):
+        if angle == None:
+            angle = self.angle
         slg = self.sensor_left_ground
         smg = self.sensor_middle_ground
         srg = self.sensor_right_ground
@@ -485,17 +487,17 @@ class Ball(object):
         self.sensor_right_ground.visible = True
         '''
         
-        slg.x = int(self.x) - cos(self.angle) * (
+        slg.x = int(self.x) - cos(angle) * (
             7*const.ANGLE_SENSOR_SCALE - slg.width/2.0)
-        slg.y = int(self.y) - sin(self.angle) * (
+        slg.y = int(self.y) - sin(angle) * (
             7*const.ANGLE_SENSOR_SCALE - slg.width/2.0)
 
         smg.x = int(self.x)
         smg.y = int(self.y)
 
-        srg.x = int(self.x) + cos(self.angle) * (
+        srg.x = int(self.x) + cos(angle) * (
             7*const.ANGLE_SENSOR_SCALE - srg.width/2.0)
-        srg.y = int(self.y) + sin(self.angle) * (
+        srg.y = int(self.y) + sin(angle) * (
             7*const.ANGLE_SENSOR_SCALE - srg.width/2.0)
 
         left_collide = False
@@ -511,14 +513,14 @@ class Ball(object):
                 if srg.collide(platform):
                     right_collide = True
             if not left_collide:
-                slg.x += sin(self.angle)
-                slg.y -= cos(self.angle)
+                slg.x += sin(angle)
+                slg.y -= cos(angle)
             if not middle_collide:
-                smg.x += sin(self.angle)
-                smg.y -= cos(self.angle)
+                smg.x += sin(angle)
+                smg.y -= cos(angle)
             if not right_collide:
-                srg.x += sin(self.angle)
-                srg.y -= cos(self.angle)
+                srg.x += sin(angle)
+                srg.y -= cos(angle)
 
         if left_collide and right_collide:
             return direction(slg, srg)
@@ -527,18 +529,19 @@ class Ball(object):
                 if middle_collide:
                     return direction(slg, smg) % 360
                 else:
-                    return self.angle % 360
+                    return angle % 360
             elif right_collide:
                 if middle_collide:
                     return direction(smg, srg)
                 else:
-                    return self.angle % 360
+                    return angle % 360
             else:
                 return self.gangle % 360
         
 
     def perform_speed_movement(self, dt):
-        collided = False
+        leftcollided = False
+        rightcollided = False
         for i in range(0, int(const.FAILSAFE_AMOUNT)):
             self.x += cos(self.angle) * self.dh/const.FAILSAFE_AMOUNT * dt
             self.y += sin(self.angle) * self.dh/const.FAILSAFE_AMOUNT * dt
@@ -557,12 +560,12 @@ class Ball(object):
                 self.sensor_right.collide(platform)):
                     self.update_sensors()
                     while self.sensor_left.collide(platform):
-                        collided = True
+                        leftcollided = True
                         self.x += cos(self.angle)
                         self.y += sin(self.angle)
                         self.update_sensors()
                     while self.sensor_right.collide(platform):
-                        collided = True
+                        rightcollided = True
                         self.x -= cos(self.angle)
                         self.y -= sin(self.angle)
                         self.update_sensors()
@@ -570,8 +573,17 @@ class Ball(object):
                     self.y += cos(self.angle)
                     self.x -= sin(self.angle)
                     self.update_sensors()
-            if collided:
-                self.dx = 0
+            if leftcollided:
+                if not self.flagGround:
+                    self.catch_left_wall()
+                else:
+                    self.dh = 0
+                break
+            elif rightcollided:
+                if not self.flagGround:
+                    self.catch_right_wall()
+                else:
+                    self.dh = 0
                 break
         self.sprite.x = self.x = int(self.x)
         self.sprite.y = self.y = int(self.y)
@@ -604,10 +616,55 @@ class Ball(object):
                     if self.flagFellOffWallOrCeiling:
                         self.set_hlock(30)
                         self.flagFellOffWallOrCeiling = False
+                    self.perform_landing_movement()
+                elif self.dv > 0:
+                    self.catch_ceiling()
                 self.dv = 0
                 break
         self.sprite.x = self.x = int(self.x)
         self.sprite.y = self.y = int(self.y)
+
+    def perform_landing_movement(self):
+        rangle = (self.calculate_angle() - self.gangle) % 360
+        if 0 <= rangle < 22.5 or 337.5 < rangle < 360:
+            "Nothing extra happens!"
+        elif 22.5 <= rangle < 45 or 315 < rangle <= 337.5:
+            if abs(self.dh) > abs(self.dv):
+                "Nothing extra happens!"
+            else:
+                self.dh = -self.dv * 0.5 * cmp(cos(rangle),1)
+        elif 45 <= rangle < 90 or 270 < rangle <= 315:
+            if abs(self.dh) > abs(self.dv):
+                "Nothing extra happens!"
+            else:
+                self.dh = -self.dv * cmp(cos(rangle),1)
+
+    def catch_ceiling(self):
+        rangle = (self.calculate_angle(self.gangle + 180) - self.gangle) % 360
+        if 135 <= rangle <= 225:
+            "Nothing extra happens!"
+        if 90 <= rangle < 135 or 225 < rangle <= 270:
+            self.flagGround = True
+            self.angle = rangle
+            self.calculate_rangle()
+
+    def catch_left_wall(self):
+        rangle = (self.calculate_angle(self.gangle + 270) - self.gangle) % 360
+        if 90 < rangle < 135:
+            self.flagGround = True
+            self.angle = rangle
+            self.calculate_rangle()
+        else:
+            self.dh = 0
+
+    def catch_right_wall(self):
+        rangle = (self.calculate_angle(self.gangle + 90) - self.gangle) % 360
+        if 225 < rangle < 270:
+            self.flagGround = True
+            self.angle = rangle
+            self.calculate_rangle()
+        else:
+            self.dh = 0
 
     def perform_ground_test(self):
         for platform in self.game.platforms:
