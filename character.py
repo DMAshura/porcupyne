@@ -305,8 +305,8 @@ class Ball(object):
                 else:
                     self.dh = 0
                 break
-        self.sprite.x = self.x = int(self.x)
-        self.sprite.y = self.y = int(self.y)
+        self.sprite.x = int(self.x)
+        self.sprite.y = int(self.y)
 
     def perform_gravity_movement(self, dt):
         self.dv = max(self.dv - self.grv, -self.maxg)

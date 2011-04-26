@@ -159,7 +159,7 @@ class Game(object):
         glLoadIdentity()
 
         # Calculate the size of our display.
-        base_size = 480.0
+        base_size = 240.0
         size_x = 0.0
         size_y = 0.0
         if (self.window.width >= self.window.height):
