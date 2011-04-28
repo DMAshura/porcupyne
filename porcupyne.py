@@ -125,13 +125,13 @@ class Game(object):
             SlantPlatform(328, 96, res)
         ]
         self.controller = Controller(self.window, self.player1)
-        self.fps_display = font.Text(pyglet.font.load('', 36, bold = True), '', 
-            color=(0.5, 0.5, 0.5, 0.5), x=-300, y=-200)
+        self.fps_display = font.Text(pyglet.font.load('', 18, bold = True), '', 
+            color=(0.5, 0.5, 0.5, 0.5), x=-150, y=-100)
 
-        ft = font.load('Arial', 20)
-        self.debug_text = [font.Text(ft, x=200, y=200),
-                      font.Text(ft, x=200, y=170),
-                      font.Text(ft, x=200, y=140)]
+        ft = font.load('Arial', 10)
+        self.debug_text = [font.Text(ft, x=-150, y=100),
+                      font.Text(ft, x=-150, y=85),
+                      font.Text(ft, x=-150, y=70)]
         
         # alpha channels¨
         rabbyt.set_default_attribs()
@@ -197,7 +197,7 @@ class Game(object):
         self.fps_display.draw()
 
         self.debug_text[0].text = str(int(self.player1.hlock))
-        self.debug_text[1].text = str(0)
+        self.debug_text[1].text = str(self.player1.state)
         self.debug_text[2].text = str(self.player1.rangle)
         self.debug_text[0].draw()
         self.debug_text[1].draw()

@@ -18,6 +18,10 @@ class Ball(object):
         self.x = x
         self.y = y
 
+        # State Machine
+
+        self.state = "Stopped"
+
         # Sensors
 
         self.sensor_bottom = Sensor(self.res)
@@ -41,8 +45,11 @@ class Ball(object):
         
         self.acc = 0.046875 * const.SCALE
         self.frc = 0.046875 * const.SCALE
+        self.rfrc = 0.0234375 * const.SCALE
         self.dec = 0.5 * const.SCALE
         self.max = 6.0 * const.SCALE
+
+        self.rol = 1.03125 * const.SCALE
 
         self.slp = 0.125 * const.SCALE
         self.ruslp = 0.078125 * const.SCALE
@@ -87,6 +94,8 @@ class Ball(object):
         # Control lock timers
         self.hlock = 0
 
+    def play_sound(self, string):
+        self.res.sound_dict[string].play()
 
     def release_jump(self):
         self.dv = min(self.dv, self.jmpweak)
@@ -101,47 +110,63 @@ class Ball(object):
         self.update_sensors()
 
     def handle_physics(self):
+        # See if rolling
+        if (abs(self.dh) >= self.rol):
+            if (self.keyDown and self.flagGround and self.state != "Rolling"):
+                self.state = "Rolling"
+                self.play_sound('spin.wav')
+                print "Rolling!"
+        
         # Slope factor
-        '''if not self.Rolling:'''
-        if self.flagGround:
-            self.dh -= self.slp * sin(self.rangle)
-        '''
+        if self.state != "Rolling":
+            if self.flagGround:
+                self.dh -= self.slp * sin(self.rangle)
         else:
-            if cmp(self.dh,0) == cmp(sin(self.rangle)):
+            if cmp(self.dh,0) == cmp(sin(self.rangle),0):
                 self.dh -= self.ruslp * sin(self.rangle)
-            elif cmp(self.dh,0) == -cmp(sin(self.rangle)):
+            elif cmp(self.dh,0) == -cmp(sin(self.rangle),0) or self.dh == 0:
                 self.dh -= self.rdslp * sin(self.rangle)
-        '''
 
         # Falling off walls and ceilings
         if 45 < self.rangle < 315 and abs(self.dh) < 2.5 * const.SCALE:
             self.set_gravity(self.gangle)
             self.flagFellOffWallOrCeiling = True
+
+        if self.state == "Rolling" and self.dh == 0 and not self.keyDown:
+            self.state = "Stopped"
+            print "Stopped!"
         
         # Speed input and management
         if self.flagAllowHorizMovement:
             if self.keyLeft:
                 if self.dh > 0 and self.flagGround:
+                    # Decelerate
                     self.dh -= self.dec
                     if -self.dec < self.dh < 0:
                         self.dh = -self.dec
-                elif self.dh > -self.max:
+                elif self.dh > -self.max and self.state != "Rolling":
+                    # Accelerate
                     if self.flagGround:
                         self.dh = max(self.dh - self.acc, -self.max)
                     else:
                         self.dh = max(self.dh - self.air, -self.max)
             elif self.keyRight:
                 if self.dh < 0 and self.flagGround:
+                    # Decelerate
                     self.dh += self.dec
                     if 0 < self.dh < self.dec:
                         self.dh = self.dec
-                elif self.dh < self.max:
+                elif self.dh < self.max and self.state != "Rolling":
+                    # Accelerate
                     if self.flagGround:
                         self.dh = min(self.dh + self.acc, self.max)
                     else:
                         self.dh = min(self.dh + self.air, self.max)
             elif not self.keyLeft and not self.keyRight and self.flagGround:
-                self.dh -= min(abs(self.dh), self.frc) * cmp(self.dh,0)
+                if self.state == "Rolling":
+                    self.dh -= min(abs(self.dh), self.rfrc) * cmp(self.dh,0)
+                else:
+                    self.dh -= min(abs(self.dh), self.frc) * cmp(self.dh,0)
 
         #Air Drag
         if 0 < self.dv < 4*const.SCALE and abs(self.dh) >= 0.125:
@@ -149,14 +174,28 @@ class Ball(object):
 
         #Jumping
         if self.flagJumpNextFrame:
-            self.res.sound_dict['jump.wav'].play()
+            self.play_sound('jump.wav')
             self.dv = self.jmp
             self.set_gravity(self.gangle)
+            self.state = "Jumping"
             self.flagGround = False
             self.flagAllowJump = False
             self.flagJumpNextFrame = False
         if self.keyJump and self.flagGround and self.flagAllowJump:
             self.flagJumpNextFrame = True
+
+    def calculate_state(self):
+        if self.flagGround:
+            if self.state != "Rolling":
+                if self.dh == 0:
+                    self.state = "Stopped"
+                elif 0 < abs(self.dh) < self.max:
+                    self.state = "Walking"
+                elif abs(self.dh) >= self.max:
+                    self.state = "Running"
+        else:
+            if self.state != "Jumping":
+                self.state = "Falling"
 
     def set_gravity(self, gangle):
         _ = rotate_basis(self.dh, self.dv, self.angle, gangle)
@@ -409,6 +448,7 @@ class Ball(object):
         self.perform_speed_movement(dt)
         if not self.flagGround or not self.perform_ground_test():
             self.perform_gravity_movement(dt)
+        self.calculate_state()
         if self.flagGround:
             self.angle = self.calculate_angle()
             self.calculate_rangle()
