@@ -12,7 +12,7 @@ class const(object):
     SENSOR_IMAGE = 'Sensor.png'
     PLATFORM_IMAGE = 'Platform.png'
 
-    DRAW_SENSORS = True
+    DRAW_SENSORS = False
 
     SLOPE_TEST = 4 # allow 4 pixels
 

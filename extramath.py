@@ -7,7 +7,7 @@ def cos(x):
     return math.cos(math.radians(x))
 
 def atan2(y,x):
-    return math.degrees(math.atan2(y,x))
+    return math.degrees(math.atan2(y,x)) % 360
 
 def direction(obj1, obj2):
     return atan2(obj2.y - obj1.y, obj2.x - obj1.x)
