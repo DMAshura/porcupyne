@@ -80,7 +80,22 @@ def collides_python(int a_x1, int a_y1, int a_x2, int a_y2,
              int b_x1, int b_y1, int b_x2, int b_y2):
     return collides(a_x1, a_y1, a_x2, a_y2, b_x1, b_y1, b_x2, b_y2)
 
-def collide_line(x1, y1, x2, y2, line_x1, line_y1, line_x2, line_y2):
+cpdef bint collide_line_line(tuple line1, tuple line2):
+    x1, y1, x2, y2 = line1
+    x3, y3, x4, y4 = line2
+    denom = (y4 - y3)*(x2 - x1) - (x4 - x3)*(y2 - y1)
+    if denom == 0:
+        return False#None
+    ua = ((x4 - x3)*(y1 - y3) - (y4 - y3)*(x1 - x3)) / denom
+    ub = ((x2 - x1)*(y1 - y3) - (y2 - y1)*(x1 - x3)) / denom
+    if ua >= 0 and ua <= 1 and ub >= 0 and ub <= 1:
+        # ix = x1 + ua*(x2 - x1)
+        # iy = y1 + ua*(y2 - y1)
+        # distance2 = (ix - x1)**2 + (iy - y1)**2
+        return True#distance2, (x4-x3, y4-y3), (ix, iy)
+    return False#None
+
+def collide_line_rectangle(x1, y1, x2, y2, line_x1, line_y1, line_x2, line_y2):
     if line_x2 - line_x1 > line_y2 - line_y1:
         delta = float(line_y2 - line_y1) / (line_x2 - line_x1)
         if line_x2 > line_x1:
@@ -111,6 +126,67 @@ def collide_line(x1, y1, x2, y2, line_x1, line_y1, line_x2, line_y2):
         if x >= x1 and x < x2:
             return True
         return False
+
+# def collide_rectangle_triangle(rect, triangle(x1, y1, x2, y2), (x3, y3, x4, y4, x5, y5)):
+    # if collide_line_rectangle(x1, y1, x2, y2, x3, y3, x4, y4):
+        # return True
+    # if collide_line_rectangle(x1, y1, x2, y2, x3, y3, x5, y5):
+        # return True
+    # if collide_line_rectangle(x1, y1, x2, y2, x4, y4, x5, y5):
+        # return True
+    # return False
+
+cdef class BasePolygon:
+    cpdef bint collide(self, BasePolygon other):
+        cdef list points1, points2
+        lines1 = self.get_lines()
+        lines2 = other.get_lines()
+        for line1 in lines1:
+            for line2 in lines2:
+                if collide_line_line(line1, line2):
+                    return True
+        return False
+    
+    cdef list get_lines(self):
+        raise NotImplementedError('get_lines()')
+
+cdef inline list get_lines_from_points(points):
+    cdef list lines = []
+    cdef int i
+    cdef int size = len(points)
+    for i in range(1, size + 1):
+        if i > (size - 1):
+            point1 = points[-1]
+            point2 = points[0]
+        else:
+            point1 = points[i]
+            point2 = points[i - 1]
+        lines.append(point1 + point2)
+    return lines
+    
+cdef class StaticPolygon(BasePolygon):
+    cdef:
+        list lines
+
+    def __init__(self, points):
+        self.lines = get_lines_from_points(points)
+    
+    cdef list get_lines(self):
+        return self.lines
+
+cdef class BoundingBox(BasePolygon):
+    cdef:
+        object sprite
+    def __init__(self, sprite):
+        self.sprite = sprite
+    
+    cdef list get_lines(self):
+        sprite = self.sprite
+        x1 = sprite.left
+        y1 = sprite.top
+        x2 = sprite.right
+        y2 = sprite.bottom
+        return get_lines_from_points(((x1, y1), (x1, y2), (x2, y2), (x2, y1)))
             
 import weakref
 generated_masks = {}#weakref.WeakKeyDictionary()
@@ -194,7 +270,7 @@ cdef class ObjectCollision(CollisionBase):
         r_x2[0] = self.sprite.right
         r_y2[0] = self.sprite.top
 
-cdef class Collision(ObjectCollision):
+cdef class SpriteCollision(ObjectCollision):
     def __init__(self, sprite):
         self.sprite = sprite
         image = sprite.texture.get_image_data()
@@ -226,76 +302,6 @@ cdef class Collision(ObjectCollision):
 
         self.mask = bitmask
         self.created()
-
-cdef inline PMASK * make_rectangle_mask(int width, int height):
-    cdef PMASK * mask = create_pmask(width, height)
-    cdef int x, y
-    for x in range(width):
-        for y in range(height):
-            set_pmask_pixel(mask, x, y, 1)
-    return mask
-
-cdef class BoundingBox(ObjectCollision):
-    def __init__(self, sprite):
-        image = sprite.texture
-        self.width = image.width
-        self.height = image.height
-        self.sprite = sprite
-        self.mask = make_rectangle_mask(self.width, self.height)
-        self.created()
-        self.isBounding = True
-    
-    def __dealloc__(self):
-        destroy_pmask(self.mask)
-    
-    def resize(self, width, height):
-        destroy_pmask(self.mask)
-        self.mask = make_rectangle_mask(self.width, self.height)
-
-cdef class Rectangle(CollisionBase):
-    def __init__(self, int x, int y, int width, int height):
-        self.x1 = x
-        self.y1 = y
-        self.x2 = x + width
-        self.y2 = y + height
-        self.width = width
-        self.height = height
-        self.mask = make_rectangle_mask(self.width, self.height)
-        self.isBounding = True
-        
-    def __dealloc__(self):
-        destroy_pmask(self.mask)
-    
-    cdef void get_rect(self, int * r_x1, int * r_y1, int * r_x2, int * r_y2):
-        r_x1[0] = self.x1
-        r_y1[0] = self.y1
-        r_x2[0] = self.x2 + 1
-        r_y2[0] = self.y2 + 1
-
-cdef PMASK * point_mask = make_rectangle_mask(1, 1)
-
-cdef class Point(CollisionBase):
-    def __init__(self, int x, int y):
-        self.x1 = x
-        self.y1 = y
-        self.x2 = x + 1
-        self.y2 = y + 1
-        self.width = 1
-        self.height = 1
-        self.mask = point_mask
-        self.isBounding = True
-    
-    def set_position(self, x, y):
-        self.x1 = x
-        self.y1 = y
-        self.x2 = x + 1
-        self.y2 = y + 1
-        
-    cdef void get_rect(self, int * r_x1, int * r_y1, int * r_x2, int * r_y2):
-        r_x1[0] = self.x1
-        r_y1[0] = self.y1
-        r_x2[0] = self.x2 + 1
-        r_y2[0] = self.y2 + 1
 
 install_pmask()
 

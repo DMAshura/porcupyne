@@ -55,9 +55,11 @@ from pyglet import gl
 import pyglet.font
 
 from pyglet.gl import (glLoadIdentity, glTranslatef, glLoadIdentity,
-    glPushMatrix, glPopMatrix, glViewport, glMatrixMode, glOrtho)
+    glPushMatrix, glPopMatrix, glViewport, glMatrixMode, glOrtho,
+    glBegin, glEnd, GL_TRIANGLES, glVertex2f, glEnable, glHint, 
+    GL_LINE_SMOOTH_HINT, GL_NICEST, GL_LINE_SMOOTH)
 
-from collision import Collision, collide_python as collide
+from collision import StaticPolygon, BoundingBox
 
 import rabbyt
 
@@ -122,7 +124,7 @@ class Game(object):
             Platform(128, 0, res),
             Platform(-270, -50, res),
             Platform(-320, 150, res),
-            SlantPlatform(328, 96, res)
+            SlantPlatform(((225, 48), (400, 48), (400, 160)), res)
         ]
         self.controller = Controller(self.window, self.player1)
         self.fps_display = font.Text(pyglet.font.load('', 18, bold = True), '', 
@@ -135,6 +137,8 @@ class Game(object):
         
         # alpha channels¨
         rabbyt.set_default_attribs()
+        glEnable(GL_LINE_SMOOTH)
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
 
     def update(self, dt):
         self.player1.update(dt)
@@ -208,14 +212,18 @@ class Platform(Sprite):
         platform_image = res.image_dict[const.PLATFORM_IMAGE]
         center_image(platform_image)
         super(Platform, self).__init__(platform_image, x = x, y = y)
-        self.collision = Collision(self)
+        self.collision = BoundingBox(self)
 
-class SlantPlatform(Sprite):
-    def __init__(self, x, y, res):
-        platform_image = res.image_dict['SlantPlatform.png']
-        center_image(platform_image)
-        super(SlantPlatform, self).__init__(platform_image, x = x, y = y)
-        self.collision = Collision(self)        
+class SlantPlatform(object):
+    def __init__(self, points, res):
+        self.points = points
+        self.collision = StaticPolygon(points)    
+    
+    def render(self):
+        glBegin(GL_TRIANGLES)
+        for x, y in self.points:
+            glVertex2f(x, y)
+        glEnd()
 
 class BG(pyglet.sprite.Sprite):
     def __init__(self, res):

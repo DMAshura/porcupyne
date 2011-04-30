@@ -1,6 +1,5 @@
 from extramath import *
 from sprite import Sprite
-from collision import Collision, collide_python as collide
 from sensors import Sensor, TinySensor
 from constants import const
 
