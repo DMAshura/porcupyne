@@ -289,6 +289,8 @@ class Ball(object):
                 else:
                     self.dh = 0
                 break
+            elif colliding_line is not None:
+                self.angle = self.calculate_angle(colliding_line)
         self.sprite.x = int(self.x)
         self.sprite.y = int(self.y)
 
@@ -304,6 +306,7 @@ class Ball(object):
             self.update_sensors()
             for platform in self.game.platforms:
                 while self.sensor_bottom.collide(platform):
+                    print 'zomg'
                     if self.dv < 0:
                         collided = True
                         colliding_line = self.sensor_bottom.collide(platform)[1]
@@ -311,6 +314,7 @@ class Ball(object):
                     self.x -= sin(self.angle)
                     self.update_sensors()
                 while self.sensor_top.collide(platform):
+                    print 'woohoo'
                     if self.dv > 0:
                         collided = True
                         colliding_line = self.sensor_top.collide(platform)[1]
@@ -324,6 +328,7 @@ class Ball(object):
                         self.set_hlock(30)
                         self.flagFellOffWallOrCeiling = False
                     self.angle = self.calculate_angle(colliding_line)
+                    print 'collided:', self.angle
                     self.perform_landing_movement(colliding_line)
                 elif self.dv > 0:
                     self.catch_ceiling(colliding_line)
@@ -334,6 +339,7 @@ class Ball(object):
 
     def perform_landing_movement(self, colliding_line):
         rangle = (self.calculate_angle(colliding_line) - self.gangle)
+        print 'landing movement:', rangle
         if 0 <= rangle < 22.5 or 337.5 < rangle < 360:
             "Nothing extra happens!"
         elif 22.5 <= rangle < 45 or 315 < rangle <= 337.5:
@@ -349,6 +355,7 @@ class Ball(object):
 
     def catch_ceiling(self, colliding_line):
         rangle = (self.calculate_angle(colliding_line) - self.gangle) % 360
+        print 'ceiling:', rangle
         if 135 <= rangle <= 225:
             "Nothing extra happens!"
         if 90 <= rangle < 135 or 225 < rangle <= 270:
@@ -358,6 +365,7 @@ class Ball(object):
 
     def catch_left_wall(self, colliding_line):
         rangle = (self.calculate_angle(colliding_line) - self.gangle) % 360
+        print 'left wall:', rangle
         if 90 < rangle < 135:
             self.flagGround = True
             self.angle = rangle
@@ -367,6 +375,7 @@ class Ball(object):
 
     def catch_right_wall(self, colliding_line):
         rangle = (self.calculate_angle(colliding_line) - self.gangle)
+        print 'right wall:', rangle
         if 225 < rangle < 270:
             self.flagGround = True
             self.angle = rangle
@@ -376,7 +385,9 @@ class Ball(object):
 
     def perform_ground_test(self):
         for platform in self.game.platforms:
-            if self.sensor_ground.collide(platform):
+            collision = self.sensor_ground.collide(platform)
+            if collision is not None:
+                self.angle = self.calculate_angle(collision[1])
                 return True
         self.flagGround = False
         self.set_gravity(self.gangle)
