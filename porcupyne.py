@@ -144,9 +144,10 @@ class Game(object):
             color=(0.5, 0.5, 0.5, 0.5), x=-150, y=-100)
 
         ft = font.load('Arial', 10)
-        self.debug_text = [font.Text(ft, x=-150, y=100),
-                      font.Text(ft, x=-150, y=85),
-                      font.Text(ft, x=-150, y=70)]
+        color = (0, 0, 0, 1)
+        self.debug_text = [font.Text(ft, x=-150, y=100, color = color),
+                      font.Text(ft, x=-150, y=85, color = color),
+                      font.Text(ft, x=-150, y=70, color = color)]
         
         # alpha channels¨
         rabbyt.set_default_attribs()
@@ -274,9 +275,6 @@ class Controller:
             self.window.set_size(854, 480)
         elif message == 'size6':
             self.window.set_size(1280, 720)
-
-
-
 
 # Temporary code to get the commit functional, this MUST BE CHANGED SOON!
 if __name__ == "__main__":
