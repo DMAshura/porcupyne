@@ -56,7 +56,7 @@ import pyglet.font
 
 from pyglet.gl import (glLoadIdentity, glTranslatef, glLoadIdentity,
     glPushMatrix, glPopMatrix, glViewport, glMatrixMode, glOrtho,
-    glBegin, glEnd, GL_TRIANGLES, glVertex2f, glEnable, glHint, 
+    glBegin, glEnd, GL_POLYGON, glVertex2f, glEnable, glHint, 
     GL_LINE_SMOOTH_HINT, GL_NICEST, GL_LINE_SMOOTH)
 
 from collision import StaticPolygon, BoundingBox
@@ -119,12 +119,25 @@ class Game(object):
 
         self.player1 = Ball(self, res)
         self.bg = BG(res)
+        platform_width = 200
+        platform_height = 96
+        def get_points(x, y):
+            x -= platform_width / 2.0
+            y -= platform_height / 2.0
+            return ((
+                (x, y), 
+                (x, y + platform_height), 
+                (x + platform_width, y + platform_height),
+                (x + platform_width, y)))
+
         self.platforms = [
-            Platform(0, -128, res),
-            Platform(128, 0, res),
-            Platform(-270, -50, res),
-            Platform(-320, 150, res),
-            SlantPlatform(((225, 48), (400, 48), (400, 160)), res)
+            Platform(get_points(0, -128), res),
+            Platform(get_points(128, 0), res),
+            Platform(get_points(-270, -50), res),
+            Platform(get_points(-320, 150), res),
+            Platform((
+                (225, 48), (400, 160), (400, 48)
+                ), res)
         ]
         self.controller = Controller(self.window, self.player1)
         self.fps_display = font.Text(pyglet.font.load('', 18, bold = True), '', 
@@ -207,20 +220,13 @@ class Game(object):
         self.debug_text[1].draw()
         self.debug_text[2].draw()
 
-class Platform(Sprite):
-    def __init__(self, x, y, res):
-        platform_image = res.image_dict[const.PLATFORM_IMAGE]
-        center_image(platform_image)
-        super(Platform, self).__init__(platform_image, x = x, y = y)
-        self.collision = BoundingBox(self)
-
-class SlantPlatform(object):
+class Platform(object):
     def __init__(self, points, res):
         self.points = points
-        self.collision = StaticPolygon(points)    
+        self.collision = StaticPolygon(points)
     
     def render(self):
-        glBegin(GL_TRIANGLES)
+        glBegin(GL_POLYGON)
         for x, y in self.points:
             glVertex2f(x, y)
         glEnd()

@@ -127,17 +127,8 @@ def collide_line_rectangle(x1, y1, x2, y2, line_x1, line_y1, line_x2, line_y2):
             return True
         return False
 
-# def collide_rectangle_triangle(rect, triangle(x1, y1, x2, y2), (x3, y3, x4, y4, x5, y5)):
-    # if collide_line_rectangle(x1, y1, x2, y2, x3, y3, x4, y4):
-        # return True
-    # if collide_line_rectangle(x1, y1, x2, y2, x3, y3, x5, y5):
-        # return True
-    # if collide_line_rectangle(x1, y1, x2, y2, x4, y4, x5, y5):
-        # return True
-    # return False
-
 cdef class BasePolygon:
-    cpdef bint collide(self, BasePolygon other):
+    cpdef tuple collide(self, BasePolygon other):
         cdef list points1, points2
         lines1 = self.get_lines()
         lines2 = other.get_lines()

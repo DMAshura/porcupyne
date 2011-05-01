@@ -234,66 +234,33 @@ class Ball(object):
     def calculate_angle(self, angle=None):
         if angle == None:
             angle = self.angle
-        slg = self.sensor_left_ground
         smg = self.sensor_middle_ground
-        srg = self.sensor_right_ground
-
-        # When this is called, the sensors should be visible.
-        '''
-        self.sensor_left_ground.visible = True
-        self.sensor_middle_ground.visible = True
-        self.sensor_right_ground.visible = True
-        '''
-        slg.x = self.x - cos(angle) * (
-            7*const.ANGLE_SENSOR_SCALE - slg.width/2.0)
-        slg.y = self.y - sin(angle) * (
-            7*const.ANGLE_SENSOR_SCALE - slg.width/2.0)
 
         smg.x = self.x
         smg.y = self.y
-
-        srg.x = self.x + cos(angle) * (
-            7*const.ANGLE_SENSOR_SCALE - srg.width/2.0)
-        srg.y = self.y + sin(angle) * (
-            7*const.ANGLE_SENSOR_SCALE - srg.width/2.0)
-
-        left_collide = False
-        middle_collide = False
-        right_collide = False
+        
+        colliding_line = None
 
         for _ in range(1, const.ANGLE_STEPS * const.ANGLE_SENSOR_SCALE):
+            exit = False
             for platform in self.game.platforms:
-                if slg.collide(platform):
-                    left_collide = True
-                if smg.collide(platform):
-                    middle_collide = True
-                if srg.collide(platform):
-                    right_collide = True
-            if not left_collide:
-                slg.x += sin(angle)
-                slg.y -= cos(angle)
-            if not middle_collide:
+                collision = smg.collide(platform)
+                if collision is None:
+                    continue
+                colliding_line = collision[1]
+                exit = True
+                break
+            if exit:
+                break
+            else:
                 smg.x += sin(angle)
                 smg.y -= cos(angle)
-            if not right_collide:
-                srg.x += sin(angle)
-                srg.y -= cos(angle)
-
-        if left_collide and right_collide:
-            return direction(slg, srg)
-        else:
-            if left_collide:
-                if middle_collide:
-                    return direction(slg, smg)
-                else:
-                    return angle
-            elif right_collide:
-                if middle_collide:
-                    return direction(smg, srg)
-                else:
-                    return angle
-            else:
-                return self.gangle
+        
+        if colliding_line is None:
+            return self.gangle
+        
+        x1, y1, x2, y2 = colliding_line
+        return direction(x2, y2, x1, y1)
 
     def perform_speed_movement(self, dt):
         leftcollided = False

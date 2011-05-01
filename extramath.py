@@ -9,8 +9,8 @@ def cos(x):
 def atan2(y,x):
     return math.degrees(math.atan2(y,x)) % 360
 
-def direction(obj1, obj2):
-    return atan2(obj2.y - obj1.y, obj2.x - obj1.x)
+def direction(x1, y1, x2, y2):
+    return atan2(y2 - y1, x2 - x1)
 
 def rotate_basis(dh1, dv1, gangle1, gangle2):
     dx = dh1 * cos(gangle1) - dv1 * sin(gangle1)
