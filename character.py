@@ -294,7 +294,6 @@ class Ball(object):
                     return angle
             else:
                 return self.gangle
-        
 
     def perform_speed_movement(self, dt):
         leftcollided = False

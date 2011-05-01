@@ -144,8 +144,8 @@ cdef class BasePolygon:
         for line1 in lines1:
             for line2 in lines2:
                 if collide_line_line(line1, line2):
-                    return True
-        return False
+                    return line1, line2
+        return None
     
     cdef list get_lines(self):
         raise NotImplementedError('get_lines()')
